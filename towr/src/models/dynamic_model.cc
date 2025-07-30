@@ -45,12 +45,13 @@ DynamicModel::DynamicModel(double mass, int ee_count)
 
   ee_force_ = EELoad(ee_count);
   ee_pos_ = EEPos(ee_count);
+  ee_torque_ = EELoad(ee_count);
 }
 
 void
 DynamicModel::SetCurrent (const ComPos& com_W, const Vector3d com_acc_W,
                           const Matrix3d& w_R_b, const AngVel& omega_W, const Vector3d& omega_dot_W,
-                          const EELoad& force_W, const EEPos& pos_W)
+                          const EELoad& force_W, const EEPos& pos_W, const EELoad& torque_W)
 {
   com_pos_   = com_W;
   com_acc_   = com_acc_W;
@@ -61,6 +62,7 @@ DynamicModel::SetCurrent (const ComPos& com_W, const Vector3d com_acc_W,
 
   ee_force_  = force_W;
   ee_pos_    = pos_W;
+  ee_torque_ = torque_W;
 }
 
 } /* namespace towr */

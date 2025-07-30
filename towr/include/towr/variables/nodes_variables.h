@@ -202,6 +202,16 @@ public:
    */
   void AddFinalBound(Dx deriv, const std::vector<int>& dimensions,
                      const VectorXd& val);
+  
+  /**
+   * @brief Bounds a specific node variables.
+   * @param node_id  The ID of the node to bound.
+   * @param deriv    The derivative of the node to set.
+   * @param dim      The dimension of the node to bound.
+   * @param values   The values to set the bounds to.
+   */
+   void AddBounds(int node_id, Dx deriv, const std::vector<int>& dim,
+    const VectorXd& values);
 
 protected:
   /**
@@ -222,15 +232,6 @@ private:
   void UpdateObservers() const;
   std::vector<ObserverPtr> observers_;
 
-  /**
-   * @brief Bounds a specific node variables.
-   * @param node_id  The ID of the node to bound.
-   * @param deriv    The derivative of the node to set.
-   * @param dim      The dimension of the node to bound.
-   * @param values   The values to set the bounds to.
-   */
-  void AddBounds(int node_id, Dx deriv, const std::vector<int>& dim,
-                 const VectorXd& values);
   /**
    * @brief Restricts a specific optimization variables.
    * @param node_info The specs of the optimization variables to restrict.

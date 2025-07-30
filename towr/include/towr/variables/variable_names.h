@@ -44,6 +44,7 @@ static const std::string base_lin_nodes    = "base-lin";
 static const std::string base_ang_nodes    = "base-ang";
 static const std::string ee_motion_nodes   = "ee-motion_";
 static const std::string ee_force_nodes    = "ee-force_";
+static const std::string ee_torque_nodes   = "ee-torque_";
 static const std::string contact_schedule  = "ee-schedule";
 
 
@@ -55,6 +56,11 @@ static std::string EEMotionNodes(uint ee)
 static std::string EEForceNodes(uint ee)
 {
   return  ee_force_nodes + std::to_string(ee);
+}
+
+static std::string EETorqueNodes(uint ee)
+{
+  return  ee_torque_nodes + std::to_string(ee);
 }
 
 static std::string EESchedule(uint ee)

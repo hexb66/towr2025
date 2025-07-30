@@ -140,7 +140,9 @@ public:
                         EndeffectorRom, ///< sets RangeOfMotionConstraint
                         TotalTime,      ///< sets TotalDurationConstraint
                         Terrain,        ///< sets TerrainConstraint
+                        TerrainHard,    ///< sets TerrainConstraintHard
                         Force,          ///< sets ForceConstraint
+                        Torque,         ///< sets TorqueConstraint
                         Swing,          ///< sets SwingConstraint
                         BaseRom,        ///< sets BaseMotionConstraint
                         BaseAcc         ///< sets SplineAccConstraint
@@ -156,6 +158,7 @@ public:
   using CostWeights      = std::vector<std::pair<CostName, double>>;
   using UsedConstraints  = std::vector<ConstraintName>;
   using VecTimes         = std::vector<double>;
+  using VecPos           = std::vector<std::vector<double>>;
   using EEID             = unsigned int;
 
   /**
@@ -166,6 +169,9 @@ public:
 
   /// Number and initial duration of each foot's swing and stance phases.
   std::vector<VecTimes> ee_phase_durations_;
+
+  /// The position of the foot in the stance phase.
+  std::vector<VecPos> ee_stance_position_;
 
   /// True if the foot is initially in contact with the terrain.
   std::vector<bool> ee_in_contact_at_start_;
@@ -194,8 +200,20 @@ public:
   /// Number of polynomials to parameterize each contact force during stance phase.
   int force_polynomials_per_stance_phase_;
 
+  /// Number of polynomials to parameterize each contact torque during stance phase.
+  int torque_polynomials_per_stance_phase_;
+
   /// The maximum allowable force [N] in normal direction
   double force_limit_in_normal_direction_;
+
+  /// Tangential torque limits [Nm]
+  double torque_tx_min_;
+  double torque_tx_max_;
+  double torque_ty_min_;
+  double torque_ty_max_;
+
+  /// Friction moment approximation coefficient
+  double torque_k_friction_;
 
   /// which dimensions (x,y,z) of the final base state should be bounded
   std::vector<int> bounds_final_lin_pos_,

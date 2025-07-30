@@ -297,4 +297,49 @@ NodesVariablesEEForce::GetPhaseBasedEEParameterization ()
   return index_map;
 }
 
+NodesVariablesEETorque::NodesVariablesEETorque(int phase_count,
+                                              bool is_in_contact_at_start,
+                                              const std::string& name,
+                                              int n_polys_in_changing_phase)
+    :NodesVariablesPhaseBased(phase_count,
+                              !is_in_contact_at_start, // contact phase for torque is non-constant
+                              name,
+                              n_polys_in_changing_phase)
+{
+  index_to_node_value_info_ = GetPhaseBasedEEParameterization();
+  SetNumberOfVariables(index_to_node_value_info_.size());
+}
+
+NodesVariablesEETorque::OptIndexMap
+NodesVariablesEETorque::GetPhaseBasedEEParameterization ()
+{
+  OptIndexMap index_map;
+
+  int idx = 0; // index in variables set
+  for (int id=0; id<nodes_.size(); ++id) {
+    // stance node:
+    // torques can be created during stance, so these nodes are optimized over.
+    if (!IsConstantNode(id)) {
+      for (int dim=0; dim<GetDim(); ++dim) {
+        index_map[idx++].push_back(NodeValueInfo(id, kPos, dim));
+        index_map[idx++].push_back(NodeValueInfo(id, kVel, dim));
+      }
+    }
+    // swing node (next one will also be swing, so handle that one too)
+    else {
+      // torques can't exist during swing phase, so no need to be optimized
+      // -> all node values simply set to zero.
+      nodes_.at(id).at(kPos).setZero();
+      nodes_.at(id+1).at(kPos).setZero();
+
+      nodes_.at(id).at(kVel).setZero();
+      nodes_.at(id+1).at(kVel).setZero();
+
+      id += 1; // already added next constant node, so skip
+    }
+  }
+
+  return index_map;
+}
+
 } /* namespace towr */

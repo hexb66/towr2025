@@ -80,6 +80,7 @@ private:
   NodeSpline::Ptr base_linear_;   ///< lin. base pos/vel/acc in world frame
   EulerConverter base_angular_;        ///< angular base state
   std::vector<NodeSpline::Ptr> ee_forces_; ///< endeffector forces in world frame.
+  std::vector<NodeSpline::Ptr> ee_torques_; ///< endeffector torques in world frame.
   std::vector<NodeSpline::Ptr> ee_motion_; ///< endeffector position in world frame.
 
   mutable DynamicModel::Ptr model_;    ///< the dynamic model (e.g. Centroidal)

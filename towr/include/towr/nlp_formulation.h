@@ -109,6 +109,7 @@ private:
   std::vector<NodesVariables::Ptr> MakeBaseVariables() const;
   std::vector<NodesVariablesPhaseBased::Ptr> MakeEndeffectorVariables() const;
   std::vector<NodesVariablesPhaseBased::Ptr> MakeForceVariables() const;
+  std::vector<NodesVariablesPhaseBased::Ptr> MakeTorqueVariables() const;
   std::vector<PhaseDurations::Ptr> MakeContactScheduleVariables() const;
 
   // constraints
@@ -118,7 +119,9 @@ private:
   ContraintPtrVec MakeRangeOfMotionBoxConstraint(const SplineHolder& s) const;
   ContraintPtrVec MakeTotalTimeConstraint() const;
   ContraintPtrVec MakeTerrainConstraint() const;
+  ContraintPtrVec MakeTerrainConstraintHard (const SplineHolder& s) const;
   ContraintPtrVec MakeForceConstraint() const;
+  ContraintPtrVec MakeTorqueConstraint() const;
   ContraintPtrVec MakeSwingConstraint() const;
   ContraintPtrVec MakeBaseRangeOfMotionConstraint(const SplineHolder& s) const;
   ContraintPtrVec MakeBaseAccConstraint(const SplineHolder& s) const;

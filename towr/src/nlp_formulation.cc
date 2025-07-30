@@ -27,6 +27,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
+#include "towr/variables/nodes_variables_phase_based.h"
+#include "towr/variables/state.h"
 #include <towr/nlp_formulation.h>
 
 #include <towr/variables/variable_names.h>
@@ -35,11 +37,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <towr/constraints/base_motion_constraint.h>
 #include <towr/constraints/dynamic_constraint.h>
 #include <towr/constraints/force_constraint.h>
+#include <towr/constraints/torque_constraint.h>
 #include <towr/constraints/range_of_motion_constraint.h>
 #include <towr/constraints/swing_constraint.h>
 #include <towr/constraints/terrain_constraint.h>
 #include <towr/constraints/total_duration_constraint.h>
 #include <towr/constraints/spline_acc_constraint.h>
+#include <towr/constraints/terrain_constraint_hard.h>
 
 #include <towr/costs/node_cost.h>
 #include <towr/variables/nodes_variables_all.h>
@@ -74,6 +78,9 @@ NlpFormulation::GetVariableSets (SplineHolder& spline_holder)
   auto ee_force = MakeForceVariables();
   vars.insert(vars.end(), ee_force.begin(), ee_force.end());
 
+  auto ee_torque = MakeTorqueVariables();
+  vars.insert(vars.end(), ee_torque.begin(), ee_torque.end());
+
   auto contact_schedule = MakeContactScheduleVariables();
   // can also just be fixed timings that aren't optimized over, but still added
   // to spline_holder.
@@ -87,6 +94,7 @@ NlpFormulation::GetVariableSets (SplineHolder& spline_holder)
                                params_.GetBasePolyDurations(),
                                ee_motion,
                                ee_force,
+                               ee_torque,
                                contact_schedule,
                                params_.IsOptimizeTimings());
   return vars;
@@ -111,6 +119,7 @@ NlpFormulation::MakeBaseVariables () const
   spline_lin->AddStartBound(kVel, {X,Y,Z}, initial_base_.lin.v());
   spline_lin->AddFinalBound(kPos, params_.bounds_final_lin_pos_,   final_base_.lin.p());
   spline_lin->AddFinalBound(kVel, params_.bounds_final_lin_vel_, final_base_.lin.v());
+  spline_lin->AddFinalBound(kAcc, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
   vars.push_back(spline_lin);
 
   auto spline_ang = std::make_shared<NodesVariablesAll>(n_nodes, k3D, id::base_ang_nodes);
@@ -119,6 +128,7 @@ NlpFormulation::MakeBaseVariables () const
   spline_ang->AddStartBound(kVel, {X,Y,Z}, initial_base_.ang.v());
   spline_ang->AddFinalBound(kPos, params_.bounds_final_ang_pos_, final_base_.ang.p());
   spline_ang->AddFinalBound(kVel, params_.bounds_final_ang_vel_, final_base_.ang.v());
+  spline_ang->AddFinalBound(kAcc, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
   vars.push_back(spline_ang);
 
   return vars;
@@ -148,7 +158,22 @@ NlpFormulation::MakeEndeffectorVariables () const
     double z = terrain_->GetHeight(x,y);
     nodes->SetByLinearInterpolation(initial_ee_W_.at(ee), Vector3d(x,y,z), T);
 
-    nodes->AddStartBound(kPos, {X,Y,Z}, initial_ee_W_.at(ee));
+    // nodes->AddStartBound(kPos, {X,Y,Z}, initial_ee_W_.at(ee));
+    // nodes->AddFinalBound(kPos, {X,Y,Z}, Vector3d(x,y,z));
+    
+    auto phase_count = params_.GetPhaseCount(ee);
+    int stance_id = 0;
+    for (int phase=0; phase<phase_count; phase++) {
+      int node_id = nodes->GetNodeIDAtStartOfPhase(phase);
+      if (!nodes->IsConstantNode(node_id)) {
+        continue;
+      }
+      Eigen::Vector2d pos = Eigen::Vector2d(params_.ee_stance_position_.at(ee).at(stance_id).data());
+      nodes->AddBounds(node_id, kPos, {X,Y}, pos);
+      stance_id++;
+      phase++;
+    }
+
     vars.push_back(nodes);
   }
 
@@ -174,6 +199,36 @@ NlpFormulation::MakeForceVariables () const
 
     Vector3d f_stance(0.0, 0.0, m*g/params_.GetEECount());
     nodes->SetByLinearInterpolation(f_stance, f_stance, T); // stay constant
+
+    nodes->AddStartBound(kVel, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
+    nodes->AddFinalBound(kVel, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
+    
+    vars.push_back(nodes);
+  }
+
+  return vars;
+}
+
+std::vector<NodesVariablesPhaseBased::Ptr>
+NlpFormulation::MakeTorqueVariables () const
+{
+  std::vector<NodesVariablesPhaseBased::Ptr> vars;
+
+  double T = params_.GetTotalTime();
+  for (int ee=0; ee<params_.GetEECount(); ee++) {
+    auto nodes = std::make_shared<NodesVariablesEETorque>(
+                                              params_.GetPhaseCount(ee),
+                                              params_.ee_in_contact_at_start_.at(ee),
+                                              id::EETorqueNodes(ee),
+                                              params_.torque_polynomials_per_stance_phase_);
+
+    // initialize with zero torques
+    Vector3d tau_stance(0.0, 0.0, 0.0);
+    nodes->SetByLinearInterpolation(tau_stance, tau_stance, T); // stay constant
+
+    nodes->AddStartBound(kVel, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
+    nodes->AddFinalBound(kVel, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
+
     vars.push_back(nodes);
   }
 
@@ -218,7 +273,9 @@ NlpFormulation::GetConstraint (Parameters::ConstraintName name,
     case Parameters::BaseRom:        return MakeBaseRangeOfMotionConstraint(s);
     case Parameters::TotalTime:      return MakeTotalTimeConstraint();
     case Parameters::Terrain:        return MakeTerrainConstraint();
+    case Parameters::TerrainHard:    return MakeTerrainConstraintHard(s);
     case Parameters::Force:          return MakeForceConstraint();
+    case Parameters::Torque:         return MakeTorqueConstraint();
     case Parameters::Swing:          return MakeSwingConstraint();
     case Parameters::BaseAcc:        return MakeBaseAccConstraint(s);
     default: throw std::runtime_error("constraint not defined!");
@@ -289,6 +346,23 @@ NlpFormulation::MakeTerrainConstraint () const
 }
 
 NlpFormulation::ContraintPtrVec
+NlpFormulation::MakeTerrainConstraintHard (const SplineHolder& s) const
+{
+  ContraintPtrVec constraints;
+
+  for (int ee=0; ee<params_.GetEECount(); ee++) {
+    auto c = std::make_shared<TerrainConstraintHard>(terrain_,
+                                                      params_.GetTotalTime(),
+                                                      params_.dt_constraint_range_of_motion_,
+                                                      ee,
+                                                      s);
+    constraints.push_back(c);
+  }
+
+  return constraints;
+}
+
+NlpFormulation::ContraintPtrVec
 NlpFormulation::MakeForceConstraint () const
 {
   ContraintPtrVec constraints;
@@ -297,6 +371,25 @@ NlpFormulation::MakeForceConstraint () const
     auto c = std::make_shared<ForceConstraint>(terrain_,
                                                params_.force_limit_in_normal_direction_,
                                                ee);
+    constraints.push_back(c);
+  }
+
+  return constraints;
+}
+
+NlpFormulation::ContraintPtrVec
+NlpFormulation::MakeTorqueConstraint () const
+{
+  ContraintPtrVec constraints;
+
+  for (int ee=0; ee<params_.GetEECount(); ee++) {
+    auto c = std::make_shared<TorqueConstraint>(terrain_,
+                                                params_.torque_tx_min_,
+                                                params_.torque_tx_max_,
+                                                params_.torque_ty_min_,
+                                                params_.torque_ty_max_,
+                                                params_.torque_k_friction_,
+                                                ee);
     constraints.push_back(c);
   }
 
@@ -357,8 +450,17 @@ NlpFormulation::MakeForcesCost(double weight) const
   CostPtrVec cost;
 
   for (int ee=0; ee<params_.GetEECount(); ee++)
-    cost.push_back(std::make_shared<NodeCost>(id::EEForceNodes(ee), kPos, Z, weight));
-
+  {
+    for (auto dim : {X, Y, Z})
+    {
+      cost.push_back(std::make_shared<NodeCost>(id::EEForceNodes(ee), kPos, dim, weight));
+      cost.push_back(std::make_shared<NodeCost>(id::EETorqueNodes(ee), kPos, dim, weight));
+      
+      cost.push_back(std::make_shared<NodeCost>(id::EEForceNodes(ee), kVel, dim, 0.1*weight));
+      cost.push_back(std::make_shared<NodeCost>(id::EETorqueNodes(ee), kVel, dim, 0.1*weight));
+    }
+  } 
+    
   return cost;
 }
 
@@ -370,6 +472,7 @@ NlpFormulation::MakeEEMotionCost(double weight) const
   for (int ee=0; ee<params_.GetEECount(); ee++) {
     cost.push_back(std::make_shared<NodeCost>(id::EEMotionNodes(ee), kVel, X, weight));
     cost.push_back(std::make_shared<NodeCost>(id::EEMotionNodes(ee), kVel, Y, weight));
+    cost.push_back(std::make_shared<NodeCost>(id::EEMotionNodes(ee), kVel, Z, 0.5*weight));
   }
 
   return cost;

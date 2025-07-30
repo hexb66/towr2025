@@ -83,7 +83,8 @@ SingleRigidBodyDynamics::GetDynamicViolation () const
 
   for (int ee=0; ee<ee_pos_.size(); ++ee) {
     Vector3d f = ee_force_.at(ee);
-    tau_sum += f.cross(com_pos_ - ee_pos_.at(ee));
+    Vector3d tau_contact = ee_torque_.at(ee);
+    tau_sum += f.cross(com_pos_ - ee_pos_.at(ee)) + tau_contact;
     f_sum   += f;
   }
 
@@ -175,6 +176,17 @@ SingleRigidBodyDynamics::GetJacobianWrtForce (const Jac& jac_force, EE ee) const
   jac.middleRows(AX, k3D) = -jac_tau;
   jac.middleRows(LX, k3D) = -jac_force;
 
+  return jac;
+}
+
+SingleRigidBodyDynamics::Jac
+SingleRigidBodyDynamics::GetJacobianWrtTorque (const Jac& jac_torque, EE ee) const
+{
+  int n = jac_torque.cols();
+  Jac jac(k6D, n);
+  jac.middleRows(AX, k3D) = -jac_torque;  // torque directly affects angular dynamics
+  // linear dynamics don't depend on contact torques
+  
   return jac;
 }
 

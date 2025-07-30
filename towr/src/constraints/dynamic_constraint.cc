@@ -45,6 +45,7 @@ DynamicConstraint::DynamicConstraint (const DynamicModel::Ptr& m,
   base_linear_  = spline_holder.base_linear_;
   base_angular_ = EulerConverter(spline_holder.base_angular_);
   ee_forces_    = spline_holder.ee_force_;
+  ee_torques_   = spline_holder.ee_torque_;
   ee_motion_    = spline_holder.ee_motion_;
 
   SetRows(GetNumberOfNodes()*k6D);
@@ -99,6 +100,11 @@ DynamicConstraint::UpdateJacobianAtInstance(double t, int k, std::string var_set
       jac_model = model_->GetJacobianWrtForce(jac_ee_force, ee);
     }
 
+    if (var_set == id::EETorqueNodes(ee)) {
+      Jacobian jac_ee_torque = ee_torques_.at(ee)->GetJacobianWrtNodes(t,kPos);
+      jac_model = model_->GetJacobianWrtTorque(jac_ee_torque, ee);
+    }
+
     if (var_set == id::EEMotionNodes(ee)) {
       Jacobian jac_ee_pos = ee_motion_.at(ee)->GetJacobianWrtNodes(t,kPos);
       jac_model = model_->GetJacobianWrtEEPos(jac_ee_pos, ee);
@@ -128,12 +134,14 @@ DynamicConstraint::UpdateModel (double t) const
   int n_ee = model_->GetEECount();
   std::vector<Eigen::Vector3d> ee_pos;
   std::vector<Eigen::Vector3d> ee_force;
+  std::vector<Eigen::Vector3d> ee_torque;
   for (int ee=0; ee<n_ee; ++ee) {
     ee_force.push_back(ee_forces_.at(ee)->GetPoint(t).p());
+    ee_torque.push_back(ee_torques_.at(ee)->GetPoint(t).p());
     ee_pos.push_back(ee_motion_.at(ee)->GetPoint(t).p());
   }
 
-  model_->SetCurrent(com.p(), com.a(), w_R_b, omega, omega_dot, ee_force, ee_pos);
+  model_->SetCurrent(com.p(), com.a(), w_R_b, omega, omega_dot, ee_force, ee_pos, ee_torque);
 }
 
 } /* namespace towr */

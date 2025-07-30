@@ -42,10 +42,21 @@ Parameters::Parameters ()
   // constructs optimization variables
   duration_base_polynomial_ = 0.1;
   force_polynomials_per_stance_phase_ = 3;
+  torque_polynomials_per_stance_phase_ = 3;
   ee_polynomials_per_swing_phase_ = 2; // so step can at least lift leg
 
   // parameters related to specific constraints (only used when it is added as well)
   force_limit_in_normal_direction_ = 1000;
+  
+  // Tangential torque limits [Nm]
+  torque_tx_min_ = -100.0;  // minimum tangential torque in x direction
+  torque_tx_max_ = 100.0;   // maximum tangential torque in x direction
+  torque_ty_min_ = -100.0;  // minimum tangential torque in y direction
+  torque_ty_max_ = 100.0;   // maximum tangential torque in y direction
+  
+  // Friction moment approximation coefficient
+  torque_k_friction_ = 2.0/3.0; // friction moment coefficient
+  
   dt_constraint_range_of_motion_ = 0.08;
   dt_constraint_dynamic_ = 0.1;
   dt_constraint_base_motion_ = duration_base_polynomial_/4.; // only for base RoM constraint
@@ -63,7 +74,7 @@ Parameters::Parameters ()
   // costs_.push_back({ForcesCostID, 1.0}); weighed by 1.0 relative to other costs
 
   // bounds on final 6DoF base state
-  bounds_final_lin_pos_ = {X,Y};
+  bounds_final_lin_pos_ = {X,Y,Z};
   bounds_final_lin_vel_ = {X,Y,Z};
   bounds_final_ang_pos_ = {X,Y,Z};
   bounds_final_ang_vel_ = {X,Y,Z};

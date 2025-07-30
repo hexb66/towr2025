@@ -74,13 +74,14 @@ TerrainConstraint::GetBounds () const
 {
   VecBound bounds(GetRows());
   double max_distance_above_terrain = 1e20; // [m]
+  double min_safety_distance = 0.02; // 摆动阶段最小安全距离 2cm
 
   int row = 0;
   for (int id : node_ids_) {
     if (ee_motion_->IsConstantNode(id))
-      bounds.at(row) = ifopt::BoundZero;
+      bounds.at(row) = ifopt::BoundZero; // 接触阶段：脚在地面上
     else
-      bounds.at(row) = ifopt::Bounds(0.0, max_distance_above_terrain);
+      bounds.at(row) = ifopt::Bounds(min_safety_distance, max_distance_above_terrain); // 摆动阶段：脚离地面至少2cm
     row++;
   }
 

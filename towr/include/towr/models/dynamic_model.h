@@ -85,10 +85,11 @@ public:
    * @param omega_dot_W  Current angular acceleration in world frame.
    * @param force_W      Force at each foot expressed in world frame.
    * @param pos_W        Position of each foot expressed in world frame
+   * @param torque_W     Torque at each foot expressed in world frame
    */
   void SetCurrent(const ComPos& com_W, const Vector3d com_acc_W,
                   const Matrix3d& w_R_b, const AngVel& omega_W, const Vector3d& omega_dot_W,
-                  const EELoad& force_W, const EEPos& pos_W);
+                  const EELoad& force_W, const EEPos& pos_W, const EELoad& torque_W);
 
   /**
    * @brief  The violation of the system dynamics incurred by the current values.
@@ -129,6 +130,16 @@ public:
   virtual Jac GetJacobianWrtForce(const Jac& ee_force, EE ee) const = 0;
 
   /**
+   * @brief How the endeffector torques affect the dynamic violation.
+   * @param ee_torque  The 3xn Jacobian of the foot torque x,y,z.
+   * @param ee        The endeffector for which the senstivity is required.
+   *
+   * @return The 6xn Jacobian of dynamic violations with respect to
+   *         variables defining the endeffector torques (e.g. node values).
+   */
+  virtual Jac GetJacobianWrtTorque(const Jac& ee_torque, EE ee) const = 0;
+
+  /**
    * @brief How the endeffector positions affect the dynamic violation.
    * @param ee_force  The 3xn Jacobian of the foot position x,y,z.
    * @param ee        The endeffector for which the senstivity is required.
@@ -163,6 +174,7 @@ protected:
 
   EEPos  ee_pos_;   ///< The x-y-z position of each endeffector.
   EELoad ee_force_; ///< The endeffector force expressed in world frame.
+  EELoad ee_torque_; ///< The endeffector torque expressed in world frame.
 
   /**
    * @brief Construct a dynamic object. Protected as this is abstract base class.

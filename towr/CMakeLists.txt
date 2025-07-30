@@ -15,52 +15,60 @@ endif()
 # so dynamic library libtowr.so retains link to ifopt_core.so
 set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
 
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+include_directories(
+  ${EIGEN3_INCLUDE_DIR}
+)
+
 # The motion-planning problem formulated through variables and constraints
 add_library(${PROJECT_NAME} SHARED
   # sample formulation usage
   src/nlp_formulation.cc
   src/parameters.cc
   # variables
-  src/nodes_variables.cc
-  src/nodes_variables_all.cc
-  src/nodes_variables_phase_based.cc
-  src/phase_durations.cc
+  src/variables/nodes_variables.cc
+  src/variables/nodes_variables_all.cc
+  src/variables/nodes_variables_phase_based.cc
+  src/variables/phase_durations.cc
   # models
-  src/robot_model.cc
-  src/dynamic_model.cc
-  src/single_rigid_body_dynamics.cc
+  src/models/robot_model.cc
+  src/models/dynamic_model.cc
+  src/models/single_rigid_body_dynamics.cc
   # constraints
-  src/time_discretization_constraint.cc
-  src/base_motion_constraint.cc
-  src/terrain_constraint.cc
-  src/swing_constraint.cc
-  src/force_constraint.cc
-  src/total_duration_constraint.cc
-  src/dynamic_constraint.cc
-  src/range_of_motion_constraint.cc
-  src/spline_acc_constraint.cc
-  src/linear_constraint.cc
+  src/constraints/time_discretization_constraint.cc
+  src/constraints/base_motion_constraint.cc
+  src/constraints/terrain_constraint.cc
+  src/constraints/terrain_constraint_hard.cc
+  src/constraints/swing_constraint.cc
+  src/constraints/force_constraint.cc
+  src/constraints/torque_constraint.cc
+  src/constraints/total_duration_constraint.cc
+  src/constraints/dynamic_constraint.cc
+  src/constraints/range_of_motion_constraint.cc
+  src/constraints/spline_acc_constraint.cc
+  src/constraints/linear_constraint.cc
   # costs
-  src/node_cost.cc
-  src/soft_constraint.cc
+  src/costs/node_cost.cc
+  src/costs/soft_constraint.cc
+  src/costs/base_height_cost.cc
   # initialization
-  src/gait_generator.cc
-  src/monoped_gait_generator.cc
-  src/biped_gait_generator.cc
-  src/quadruped_gait_generator.cc
+  src/initialization/gait_generator.cc
+  src/initialization/monoped_gait_generator.cc
+  src/initialization/biped_gait_generator.cc
+  src/initialization/quadruped_gait_generator.cc
   # terrain
-  src/height_map_examples.cc
-  src/height_map.cc
+  src/terrain/height_map_examples.cc
+  src/terrain/height_map.cc
   # helpers
-  src/state.cc
-  src/polynomial.cc
-  src/spline.cc
-  src/phase_spline.cc
-  src/node_spline.cc
-  src/nodes_observer.cc
-  src/spline_holder.cc
-  src/euler_converter.cc
-  src/phase_durations_observer.cc
+  src/helpers/state.cc
+  src/helpers/polynomial.cc
+  src/helpers/spline.cc
+  src/helpers/phase_spline.cc
+  src/helpers/node_spline.cc
+  src/helpers/nodes_observer.cc
+  src/helpers/spline_holder.cc
+  src/helpers/euler_converter.cc
+  src/helpers/phase_durations_observer.cc
 )
 target_link_libraries(${PROJECT_NAME} 
   PUBLIC 
@@ -87,6 +95,15 @@ target_link_libraries(${PROJECT_NAME}-example
     ifopt::ifopt_ipopt
 )
 add_test(${PROJECT_NAME}-example ${PROJECT_NAME}-example)
+
+add_executable(${PROJECT_NAME}-example-2 
+  test/biped_example.cc
+)
+target_link_libraries(${PROJECT_NAME}-example-2  
+  PRIVATE
+    ${PROJECT_NAME} 
+    ifopt::ifopt_ipopt
+)
 
 # unit tests of costs/constraints
 find_package(GTest QUIET)

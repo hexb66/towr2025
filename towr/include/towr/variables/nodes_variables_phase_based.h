@@ -214,6 +214,26 @@ public:
   OptIndexMap GetPhaseBasedEEParameterization ();
 };
 
+/**
+ * @brief Variables fully defining the endeffector torques.
+ *
+ * This class represents contact torques that can be applied at the contact
+ * points, in addition to contact forces. These torques are independent of
+ * the force-generated torques and can represent friction torques, actuator
+ * torques, or other contact moments.
+ *
+ * @ingroup Variables
+ */
+class NodesVariablesEETorque : public NodesVariablesPhaseBased {
+public:
+  NodesVariablesEETorque(int phase_count,
+                         bool is_in_contact_at_start,
+                         const std::string& name,
+                         int n_polys_in_changing_phase);
+  virtual ~NodesVariablesEETorque() = default;
+  OptIndexMap GetPhaseBasedEEParameterization ();
+};
+
 } /* namespace towr */
 
 #endif /* TOWR_VARIABLES_PHASE_NODES_H_ */
