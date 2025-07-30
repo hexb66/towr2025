@@ -44,6 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <towr/constraints/total_duration_constraint.h>
 #include <towr/constraints/spline_acc_constraint.h>
 #include <towr/constraints/terrain_constraint_hard.h>
+#include <towr/constraints/base_height_constraint.h>
 
 #include <towr/costs/node_cost.h>
 #include <towr/variables/nodes_variables_all.h>
@@ -200,6 +201,8 @@ NlpFormulation::MakeForceVariables () const
     Vector3d f_stance(0.0, 0.0, m*g/params_.GetEECount());
     nodes->SetByLinearInterpolation(f_stance, f_stance, T); // stay constant
 
+    nodes->AddStartBound(kPos, {X,Y,Z}, Vector3d(0.0, 0.0, m*g/params_.GetEECount()));
+    nodes->AddFinalBound(kPos, {X,Y,Z}, Vector3d(0.0, 0.0, m*g/params_.GetEECount()));
     nodes->AddStartBound(kVel, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
     nodes->AddFinalBound(kVel, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
     
@@ -226,6 +229,8 @@ NlpFormulation::MakeTorqueVariables () const
     Vector3d tau_stance(0.0, 0.0, 0.0);
     nodes->SetByLinearInterpolation(tau_stance, tau_stance, T); // stay constant
 
+    nodes->AddStartBound(kPos, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
+    nodes->AddFinalBound(kPos, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
     nodes->AddStartBound(kVel, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
     nodes->AddFinalBound(kVel, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
 
@@ -278,6 +283,7 @@ NlpFormulation::GetConstraint (Parameters::ConstraintName name,
     case Parameters::Torque:         return MakeTorqueConstraint();
     case Parameters::Swing:          return MakeSwingConstraint();
     case Parameters::BaseAcc:        return MakeBaseAccConstraint(s);
+    case Parameters::BaseHeight:     return MakeBaseHeightConstraint();
     default: throw std::runtime_error("constraint not defined!");
   }
 }
@@ -419,6 +425,19 @@ NlpFormulation::MakeBaseAccConstraint (const SplineHolder& s) const
 
   constraints.push_back(std::make_shared<SplineAccConstraint>
                         (s.base_angular_, id::base_ang_nodes));
+
+  return constraints;
+}
+
+NlpFormulation::ContraintPtrVec
+NlpFormulation::MakeBaseHeightConstraint () const
+{
+  ContraintPtrVec constraints;
+
+  // Add base height constraint with safety distance
+  double safety_distance = 0.4; // 10cm minimum distance above terrain
+  auto c = std::make_shared<BaseHeightConstraint>(terrain_, safety_distance, id::base_lin_nodes);
+  constraints.push_back(c);
 
   return constraints;
 }

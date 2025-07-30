@@ -145,7 +145,8 @@ public:
                         Torque,         ///< sets TorqueConstraint
                         Swing,          ///< sets SwingConstraint
                         BaseRom,        ///< sets BaseMotionConstraint
-                        BaseAcc         ///< sets SplineAccConstraint
+                        BaseAcc,        ///< sets SplineAccConstraint
+                        BaseHeight      ///< sets BaseHeightConstraint
   };
   /**
    *  @brief Indentifiers to be used to add certain costs to the optimization
