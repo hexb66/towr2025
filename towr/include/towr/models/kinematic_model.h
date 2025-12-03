@@ -58,7 +58,12 @@ public:
   KinematicModel (int n_ee)
   {
     nominal_stance_.resize(n_ee);
-    max_dev_from_nominal_.setZero();
+    max_dev_from_nominal_.resize(n_ee);
+    min_dev_from_nominal_.resize(n_ee);
+    for (int i = 0; i < n_ee; i++) {
+      max_dev_from_nominal_[i].setZero();
+      min_dev_from_nominal_[i].setZero();
+    }
   }
 
   virtual ~KinematicModel () = default;
@@ -76,9 +81,14 @@ public:
    * @brief How far each foot can deviate from its nominal position.
    * @return The deviation [m] expresed in the base frame.
    */
-  virtual Vector3d GetMaximumDeviationFromNominal() const
+  virtual std::vector<Vector3d> GetMaximumDeviationFromNominal() const
   {
     return max_dev_from_nominal_;
+  }
+  
+  virtual std::vector<Vector3d> GetMinimumDeviationFromNominal() const
+  {
+    return min_dev_from_nominal_;
   }
 
   /**
@@ -91,7 +101,8 @@ public:
 
 protected:
   EEPos nominal_stance_;
-  Vector3d max_dev_from_nominal_;
+  std::vector<Vector3d> max_dev_from_nominal_;
+  std::vector<Vector3d> min_dev_from_nominal_;
 };
 
 } /* namespace towr */

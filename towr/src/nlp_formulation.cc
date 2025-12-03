@@ -118,6 +118,7 @@ NlpFormulation::MakeBaseVariables () const
   spline_lin->SetByLinearInterpolation(initial_base_.lin.p(), final_pos, params_.GetTotalTime());
   spline_lin->AddStartBound(kPos, {X,Y,Z}, initial_base_.lin.p());
   spline_lin->AddStartBound(kVel, {X,Y,Z}, initial_base_.lin.v());
+  spline_lin->AddStartBound(kAcc, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
   spline_lin->AddFinalBound(kPos, params_.bounds_final_lin_pos_,   final_base_.lin.p());
   spline_lin->AddFinalBound(kVel, params_.bounds_final_lin_vel_, final_base_.lin.v());
   spline_lin->AddFinalBound(kAcc, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
@@ -127,6 +128,7 @@ NlpFormulation::MakeBaseVariables () const
   spline_ang->SetByLinearInterpolation(initial_base_.ang.p(), final_base_.ang.p(), params_.GetTotalTime());
   spline_ang->AddStartBound(kPos, {X,Y,Z}, initial_base_.ang.p());
   spline_ang->AddStartBound(kVel, {X,Y,Z}, initial_base_.ang.v());
+  spline_ang->AddStartBound(kAcc, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
   spline_ang->AddFinalBound(kPos, params_.bounds_final_ang_pos_, final_base_.ang.p());
   spline_ang->AddFinalBound(kVel, params_.bounds_final_ang_vel_, final_base_.ang.v());
   spline_ang->AddFinalBound(kAcc, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
@@ -159,20 +161,24 @@ NlpFormulation::MakeEndeffectorVariables () const
     double z = terrain_->GetHeight(x,y);
     nodes->SetByLinearInterpolation(initial_ee_W_.at(ee), Vector3d(x,y,z), T);
 
-    // nodes->AddStartBound(kPos, {X,Y,Z}, initial_ee_W_.at(ee));
-    // nodes->AddFinalBound(kPos, {X,Y,Z}, Vector3d(x,y,z));
-    
-    auto phase_count = params_.GetPhaseCount(ee);
-    int stance_id = 0;
-    for (int phase=0; phase<phase_count; phase++) {
-      int node_id = nodes->GetNodeIDAtStartOfPhase(phase);
-      if (!nodes->IsConstantNode(node_id)) {
-        continue;
+    if (params_.enable_stance_tracking) 
+    {
+      auto phase_count = params_.GetPhaseCount(ee);
+      int stance_id = 0;
+      for (int phase=0; phase<phase_count; phase++) 
+      {
+        int node_id = nodes->GetNodeIDAtStartOfPhase(phase);
+        if (!nodes->IsConstantNode(node_id)) {continue;}
+        Eigen::Vector2d pos = Eigen::Vector2d(params_.ee_stance_position_.at(ee).at(stance_id).data());
+        nodes->AddBounds(node_id, kPos, {X,Y}, pos);
+        stance_id++;
+        phase++;
       }
-      Eigen::Vector2d pos = Eigen::Vector2d(params_.ee_stance_position_.at(ee).at(stance_id).data());
-      nodes->AddBounds(node_id, kPos, {X,Y}, pos);
-      stance_id++;
-      phase++;
+    }
+    else 
+    {
+      nodes->AddStartBound(kPos, {X,Y,Z}, initial_ee_W_.at(ee));
+      nodes->AddFinalBound(kPos, {X,Y,Z}, Vector3d(x,y,z));
     }
 
     vars.push_back(nodes);

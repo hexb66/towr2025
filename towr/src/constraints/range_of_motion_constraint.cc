@@ -42,7 +42,8 @@ RangeOfMotionConstraint::RangeOfMotionConstraint (const KinematicModel::Ptr& mod
   base_angular_ = EulerConverter(spline_holder.base_angular_);
   ee_motion_    = spline_holder.ee_motion_.at(ee);
 
-  max_deviation_from_nominal_ = model->GetMaximumDeviationFromNominal();
+  max_deviation_from_nominal_ = model->GetMaximumDeviationFromNominal().at(ee);
+  min_deviation_from_nominal_ = model->GetMinimumDeviationFromNominal().at(ee);
   nominal_ee_pos_B_           = model->GetNominalStanceInBase().at(ee);
   ee_ = ee;
 
@@ -75,7 +76,7 @@ RangeOfMotionConstraint::UpdateBoundsAtInstance (double t, int k, VecBound& boun
     ifopt::Bounds b;
     b += nominal_ee_pos_B_(dim);
     b.upper_ += max_deviation_from_nominal_(dim);
-    b.lower_ -= max_deviation_from_nominal_(dim);
+    b.lower_ += min_deviation_from_nominal_(dim);
     bounds.at(GetRow(k,dim)) = b;
   }
 }

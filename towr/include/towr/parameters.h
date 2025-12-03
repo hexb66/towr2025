@@ -207,6 +207,9 @@ public:
   /// The maximum allowable force [N] in normal direction
   double force_limit_in_normal_direction_;
 
+  // Stance position tracking for each step, true by default
+  bool enable_stance_tracking = true;
+
   /// Tangential torque limits [Nm]
   double torque_tx_min_;
   double torque_tx_max_;
