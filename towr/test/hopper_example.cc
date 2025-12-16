@@ -39,6 +39,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <towr/costs/node_cost.h>
 #include <towr/variables/variable_names.h>
 
+#include <towr/utils/save_data.h>
+
 
 using namespace towr;
 
@@ -177,136 +179,8 @@ int main()
   solver->SetOption("tol", 1e-4);           // 适当放宽容差
   solver->Solve(nlp);
 
-  // Can directly view the optimization variables through:
-  // Eigen::VectorXd x = nlp.GetVariableValues()
-  // However, it's more convenient to access the splines constructed from these
-  // variables and query their values at specific times:
-  using namespace std;
-  cout.precision(2);
-  nlp.PrintCurrent(); // view variable-set, constraint violations, indices,...
-  cout << fixed;
-  cout << "\n====================\nMonoped trajectory:\n====================\n";
+  nlp.PrintCurrent();
 
-  // ====================
-  // CSV Trajectory Export
-  // ====================
-  double T_sample = 0.001; // 1ms sampling period
-  double T_total = solution.base_linear_->GetTotalTime();
-  
-  // Create CSV file
-  ofstream csv_file("hopper_trajectory.csv");
-  csv_file << fixed << setprecision(6);
-  
-  // Write CSV header
-  csv_file << "time,"
-           << "base_pos_x,base_pos_y,base_pos_z,"
-           << "base_vel_x,base_vel_y,base_vel_z,"
-           << "base_acc_x,base_acc_y,base_acc_z,"
-           << "base_euler_roll,base_euler_pitch,base_euler_yaw,"
-           << "base_omega_x,base_omega_y,base_omega_z,"
-           << "base_omegadot_x,base_omegadot_y,base_omegadot_z,"
-           << "ee_pos_x,ee_pos_y,ee_pos_z,"
-           << "ee_vel_x,ee_vel_y,ee_vel_z,"
-           << "ee_acc_x,ee_acc_y,ee_acc_z,"
-           << "contact_force_x,contact_force_y,contact_force_z,"
-           << "contact_torque_x,contact_torque_y,contact_torque_z,"
-           << "is_contact_phase"
-           << endl;
-
-  cout << "Exporting trajectory to CSV file..." << endl;
-  cout << "Total time: " << T_total << " seconds" << endl;
-  cout << "Sampling period: " << T_sample << " seconds" << endl;
-  
-  int sample_count = 0;
-  double t = 0.0;
-  while (t <= T_total + 1e-9) {
-    // Base linear motion
-    auto base_linear_state = solution.base_linear_->GetPoint(t);
-    Eigen::Vector3d base_pos = base_linear_state.p();
-    Eigen::Vector3d base_vel = base_linear_state.v();
-    Eigen::Vector3d base_acc = base_linear_state.a();
-    
-    // Base angular motion
-    auto base_angular_state = solution.base_angular_->GetPoint(t);
-    Eigen::Vector3d base_euler = base_angular_state.p();
-    Eigen::Vector3d base_omega = base_angular_state.v();
-    Eigen::Vector3d base_omegadot = base_angular_state.a();
-    
-    // End-effector motion
-    auto ee_state = solution.ee_motion_.at(0)->GetPoint(t);
-    Eigen::Vector3d ee_pos = ee_state.p();
-    Eigen::Vector3d ee_vel = ee_state.v();
-    Eigen::Vector3d ee_acc = ee_state.a();
-    
-    // Contact forces and torques
-    Eigen::Vector3d contact_force = solution.ee_force_.at(0)->GetPoint(t).p();
-    Eigen::Vector3d contact_torque = solution.ee_torque_.at(0)->GetPoint(t).p();
-    
-    // Contact phase
-    bool is_contact = solution.phase_durations_.at(0)->IsContactPhase(t);
-    
-    // Write to CSV
-    csv_file << t << ","
-             << base_pos.x() << "," << base_pos.y() << "," << base_pos.z() << ","
-             << base_vel.x() << "," << base_vel.y() << "," << base_vel.z() << ","
-             << base_acc.x() << "," << base_acc.y() << "," << base_acc.z() << ","
-             << base_euler.x() << "," << base_euler.y() << "," << base_euler.z() << ","
-             << base_omega.x() << "," << base_omega.y() << "," << base_omega.z() << ","
-             << base_omegadot.x() << "," << base_omegadot.y() << "," << base_omegadot.z() << ","
-             << ee_pos.x() << "," << ee_pos.y() << "," << ee_pos.z() << ","
-             << ee_vel.x() << "," << ee_vel.y() << "," << ee_vel.z() << ","
-             << ee_acc.x() << "," << ee_acc.y() << "," << ee_acc.z() << ","
-             << contact_force.x() << "," << contact_force.y() << "," << contact_force.z() << ","
-             << contact_torque.x() << "," << contact_torque.y() << "," << contact_torque.z() << ","
-             << (is_contact ? 1 : 0)
-             << endl;
-    
-    t += T_sample;
-    sample_count++;
-  }
-  
-  csv_file.close();
-  cout << "Trajectory exported successfully!" << endl;
-  cout << "Total samples: " << sample_count << endl;
-  cout << "File: hopper_trajectory.csv" << endl;
-
-  // // ====================
-  // // Console Output (simplified)
-  // // ====================
-  // cout << "\n====================\nSample trajectory points:\n====================\n";
-  
-  // t = 0.0;
-  // while (t<=solution.base_linear_->GetTotalTime() + 1e-5) {
-  //   cout << "t=" << t << "\n";
-  //   cout << "Base linear position x,y,z:   \t";
-  //   cout << solution.base_linear_->GetPoint(t).p().transpose() << "\t[m]" << endl;
-
-  //   cout << "Base Euler roll, pitch, yaw:  \t";
-  //   Eigen::Vector3d rad = solution.base_angular_->GetPoint(t).p();
-  //   cout << (rad/M_PI*180).transpose() << "\t[deg]" << endl;
-
-  //   cout << "Foot position x,y,z:          \t";
-  //   cout << solution.ee_motion_.at(0)->GetPoint(t).p().transpose() << "\t[m]" << endl;
-
-  //   cout << "Contact force x,y,z:          \t";
-  //   cout << solution.ee_force_.at(0)->GetPoint(t).p().transpose() << "\t[N]" << endl;
-
-  //   cout << "Contact torque x,y,z:         \t";
-  //   cout << solution.ee_torque_.at(0)->GetPoint(t).p().transpose() << "\t[Nm]" << endl;
-
-  //   bool contact = solution.phase_durations_.at(0)->IsContactPhase(t);
-  //   std::string foot_in_contact = contact? "yes" : "no";
-  //   cout << "Foot in contact:              \t" + foot_in_contact << endl;
-
-  //   cout << endl;
-
-  //   t += 0.2;
-  // }
-  
-  // Summary statistics
-  cout << "\n====================\nTrajectory Summary:\n====================\n";
-  cout << "Total trajectory time: " << T_total << " seconds" << endl;
-  cout << "CSV sampling rate: " << (1.0/T_sample) << " Hz" << endl;
-  cout << "Total CSV samples: " << sample_count << endl;
-  cout << "CSV file size: ~" << (sample_count * 25 * 8 / 1024) << " KB" << endl;
+  // save data
+  SaveTrajectoryToCSV(solution, "hopper_trajectory.csv", 0.001);
 }

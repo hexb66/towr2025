@@ -70,6 +70,8 @@ add_library(${PROJECT_NAME} SHARED
   src/helpers/spline_holder.cc
   src/helpers/euler_converter.cc
   src/helpers/phase_durations_observer.cc
+  # utils
+  src/utils/save_data.cpp
 )
 target_link_libraries(${PROJECT_NAME} 
   PUBLIC 
