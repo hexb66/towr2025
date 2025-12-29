@@ -57,6 +57,10 @@ Parameters::Parameters ()
   // Friction moment approximation coefficient
   torque_k_friction_ = 2.0/3.0; // friction moment coefficient
   
+  // Swing height limits - will be resized based on number of endeffectors
+  // Users can modify these after construction or they will be auto-initialized
+  // Default: min = 0.02m (2cm), max = 0.5m
+  
   dt_constraint_range_of_motion_ = 0.08;
   dt_constraint_dynamic_ = 0.1;
   dt_constraint_base_motion_ = duration_base_polynomial_/4.; // only for base RoM constraint

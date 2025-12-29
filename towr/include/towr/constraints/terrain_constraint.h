@@ -56,8 +56,11 @@ public:
    * @brief Constructs a terrain constraint.
    * @param terrain  The terrain height value and slope for each position x,y.
    * @param ee_motion_id The name of the endeffector variable set.
+   * @param min_height Minimum height [m] above terrain during swing phase.
+   * @param max_height Maximum height [m] above terrain during swing phase.
    */
-  TerrainConstraint (const HeightMap::Ptr& terrain, std::string ee_motion_id);
+  TerrainConstraint (const HeightMap::Ptr& terrain, std::string ee_motion_id,
+                     double min_height = 0.02, double max_height = 0.5);
   virtual ~TerrainConstraint () = default;
 
   void InitVariableDependedQuantities(const VariablesPtr& x) override;
@@ -72,6 +75,9 @@ private:
 
   std::string ee_motion_id_;  ///< the name of the endeffector variable set.
   std::vector<int> node_ids_; ///< the indices of the nodes constrained.
+  
+  double min_swing_height_;   ///< minimum height above terrain during swing phase.
+  double max_swing_height_;   ///< maximum height above terrain during swing phase.
 };
 
 } /* namespace towr */

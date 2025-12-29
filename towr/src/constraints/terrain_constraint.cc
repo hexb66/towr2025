@@ -34,11 +34,15 @@ namespace towr {
 
 
 TerrainConstraint::TerrainConstraint (const HeightMap::Ptr& terrain,
-                                      std::string ee_motion)
+                                      std::string ee_motion,
+                                      double min_height,
+                                      double max_height)
     :ConstraintSet(kSpecifyLater, "terrain-" + ee_motion)
 {
   ee_motion_id_ = ee_motion;
   terrain_ = terrain;
+  min_swing_height_ = min_height;
+  max_swing_height_ = max_height;
 }
 
 void
@@ -73,15 +77,13 @@ TerrainConstraint::VecBound
 TerrainConstraint::GetBounds () const
 {
   VecBound bounds(GetRows());
-  double max_distance_above_terrain = 1e20; // [m]
-  double min_safety_distance = 0.02; // 摆动阶段最小安全距离 2cm
 
   int row = 0;
   for (int id : node_ids_) {
     if (ee_motion_->IsConstantNode(id))
       bounds.at(row) = ifopt::BoundZero; // 接触阶段：脚在地面上
     else
-      bounds.at(row) = ifopt::Bounds(min_safety_distance, max_distance_above_terrain); // 摆动阶段：脚离地面至少2cm
+      bounds.at(row) = ifopt::Bounds(min_swing_height_, max_swing_height_); // 摆动阶段：使用可配置的高度限制
     row++;
   }
 

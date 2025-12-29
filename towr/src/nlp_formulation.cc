@@ -29,6 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "towr/variables/nodes_variables_phase_based.h"
 #include "towr/variables/state.h"
+#include <cmath>
 #include <towr/nlp_formulation.h>
 
 #include <towr/variables/variable_names.h>
@@ -350,7 +351,28 @@ NlpFormulation::MakeTerrainConstraint () const
   ContraintPtrVec constraints;
 
   for (int ee=0; ee<params_.GetEECount(); ee++) {
-    auto c = std::make_shared<TerrainConstraint>(terrain_, id::EEMotionNodes(ee));
+    // Get height limits for this endeffector, or use defaults if not specified
+    double min_height = 0.02; // default: 2cm
+    double max_height = std::numeric_limits<double>::infinity();  // default: infinity
+    
+    if (ee < params_.ee_swing_height_min_.size()) {
+      min_height = params_.ee_swing_height_min_.at(ee);
+    }
+    
+    if (ee < params_.ee_swing_height_max_.size()) {
+      max_height = params_.ee_swing_height_max_.at(ee);
+    }
+    
+    // Validate height limits
+    if (min_height < 0.0) {
+      throw std::runtime_error("Swing height minimum must be >= 0.0");
+    }
+    if (max_height <= min_height) {
+      throw std::runtime_error("Swing height maximum must be > minimum");
+    }
+    
+    auto c = std::make_shared<TerrainConstraint>(terrain_, id::EEMotionNodes(ee),
+                                                  min_height, max_height);
     constraints.push_back(c);
   }
 

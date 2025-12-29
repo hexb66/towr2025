@@ -219,6 +219,12 @@ public:
   /// Friction moment approximation coefficient
   double torque_k_friction_;
 
+  /// Minimum height [m] above terrain during swing phase for each endeffector
+  std::vector<double> ee_swing_height_min_;
+
+  /// Maximum height [m] above terrain during swing phase for each endeffector
+  std::vector<double> ee_swing_height_max_;
+
   /// which dimensions (x,y,z) of the final base state should be bounded
   std::vector<int> bounds_final_lin_pos_,
                    bounds_final_lin_vel_,
