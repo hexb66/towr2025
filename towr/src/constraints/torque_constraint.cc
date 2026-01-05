@@ -75,8 +75,8 @@ TorqueConstraint::GetValues () const
   auto torque_nodes = ee_torque_->GetNodes();
   for (int t_node_id : pure_stance_torque_node_ids_) {
     int phase = ee_torque_->GetPhase(t_node_id);
-    Vector3d p = ee_motion_->GetValueAtStartOfPhase(phase); // doesn't change during stance phase
-    Vector3d f = ee_force_->GetValueAtStartOfPhase(phase);  // doesn't change during stance phase
+    Vector3d p = ee_motion_->GetValueAtStartOfPhase(phase).head<3>(); // doesn't change during stance phase
+    Vector3d f = ee_force_->GetValueAtStartOfPhase(phase).head<3>();  // doesn't change during stance phase
     Vector3d tau = torque_nodes.at(t_node_id).p();
 
     // Get terrain basis vectors
@@ -107,8 +107,8 @@ TorqueConstraint::GetBounds () const
 
   for (int t_node_id : pure_stance_torque_node_ids_) {
     int phase = ee_torque_->GetPhase(t_node_id);
-    Vector3d f = ee_force_->GetValueAtStartOfPhase(phase);
-    Vector3d p = ee_motion_->GetValueAtStartOfPhase(phase);
+    Vector3d f = ee_force_->GetValueAtStartOfPhase(phase).head<3>();
+    Vector3d p = ee_motion_->GetValueAtStartOfPhase(phase).head<3>();
     
     // Get terrain normal for normal force calculation
     Vector3d n = terrain_->GetNormalizedBasis(HeightMap::Normal, p.x(), p.y());
@@ -134,7 +134,7 @@ TorqueConstraint::FillJacobianBlock (std::string var_set,
     int row = 0;
     for (int t_node_id : pure_stance_torque_node_ids_) {
       int phase = ee_torque_->GetPhase(t_node_id);
-      Vector3d p = ee_motion_->GetValueAtStartOfPhase(phase);
+      Vector3d p = ee_motion_->GetValueAtStartOfPhase(phase).head<3>();
       
       // Get terrain basis vectors
       Vector3d n = terrain_->GetNormalizedBasis(HeightMap::Normal, p.x(), p.y());
@@ -162,8 +162,8 @@ TorqueConstraint::FillJacobianBlock (std::string var_set,
     for (int t_node_id : pure_stance_torque_node_ids_) {
       int phase = ee_torque_->GetPhase(t_node_id);
       int ee_node_id = ee_motion_->GetNodeIDAtStartOfPhase(phase);
-      Vector3d p = ee_motion_->GetValueAtStartOfPhase(phase);
-      Vector3d tau = ee_torque_->GetValueAtStartOfPhase(phase);
+      Vector3d p = ee_motion_->GetValueAtStartOfPhase(phase).head<3>();
+      Vector3d tau = ee_torque_->GetValueAtStartOfPhase(phase).head<3>();
 
       for (auto dim : {X_,Y_}) {
         Vector3d dt1 = terrain_->GetDerivativeOfNormalizedBasisWrt(HeightMap::Tangent1, dim, p.x(), p.y());

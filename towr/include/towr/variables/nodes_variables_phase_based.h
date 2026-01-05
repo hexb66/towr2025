@@ -80,18 +80,20 @@ public:
    * @param var_name  The name given to this set of optimization variables.
    * @param n_polys_in_changing_phase  How many polynomials should be used to
    *                                   paramerize each non-constant phase.
+   * @param n_dim  Dimensionality of the node (default 3 for xyz). Use 1 for yaw.
    */
   NodesVariablesPhaseBased (int phase_count,
                             bool first_phase_constant,
                             const std::string& var_name,
-                            int n_polys_in_changing_phase);
+                            int n_polys_in_changing_phase,
+                            int n_dim = 3);
 
   virtual ~NodesVariablesPhaseBased() = default;
 
   /**
    * @returns the value of the first node of the phase.
    */
-  Eigen::Vector3d GetValueAtStartOfPhase(int phase) const;
+  VectorXd GetValueAtStartOfPhase(int phase) const;
 
   /**
    * @returns the ID of the first node in the phase.
@@ -195,6 +197,25 @@ public:
                          const std::string& name,
                          int n_polys_in_changing_phase);
   virtual ~NodesVariablesEEMotion() = default;
+  OptIndexMap GetPhaseBasedEEParameterization ();
+};
+
+/**
+ * @brief Variables defining the endeffector yaw (world yaw) trajectory.
+ *
+ * Parameterization follows the endeffector motion:
+ * - stance phase is constant (yaw does not change)
+ * - swing phase can change (yaw and yaw-rate optimized)
+ *
+ * @ingroup Variables
+ */
+class NodesVariablesEEYaw : public NodesVariablesPhaseBased {
+public:
+  NodesVariablesEEYaw(int phase_count,
+                      bool is_in_contact_at_start,
+                      const std::string& name,
+                      int n_polys_in_changing_phase);
+  virtual ~NodesVariablesEEYaw() = default;
   OptIndexMap GetPhaseBasedEEParameterization ();
 };
 

@@ -108,6 +108,7 @@ private:
   // variables
   std::vector<NodesVariables::Ptr> MakeBaseVariables() const;
   std::vector<NodesVariablesPhaseBased::Ptr> MakeEndeffectorVariables() const;
+  std::vector<NodesVariablesPhaseBased::Ptr> MakeEndeffectorYawVariables() const;
   std::vector<NodesVariablesPhaseBased::Ptr> MakeForceVariables() const;
   std::vector<NodesVariablesPhaseBased::Ptr> MakeTorqueVariables() const;
   std::vector<PhaseDurations::Ptr> MakeContactScheduleVariables() const;

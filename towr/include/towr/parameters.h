@@ -174,6 +174,10 @@ public:
   /// The position of the foot in the stance phase.
   std::vector<VecPos> ee_stance_position_;
 
+  /// The yaw [rad] of the endeffector in each stance phase (world yaw).
+  /// ee_stance_yaw_[ee][k] corresponds to the k-th stance phase (in time order).
+  std::vector<std::vector<double>> ee_stance_yaw_;
+
   /// True if the foot is initially in contact with the terrain.
   std::vector<bool> ee_in_contact_at_start_;
 
@@ -209,6 +213,9 @@ public:
 
   // Stance position tracking for each step, true by default
   bool enable_stance_tracking = true;
+
+  // Stance yaw tracking for each step, true by default
+  bool enable_stance_yaw_tracking = true;
 
   /// Tangential torque limits [Nm]
   double torque_tx_min_;

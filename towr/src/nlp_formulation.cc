@@ -77,6 +77,9 @@ NlpFormulation::GetVariableSets (SplineHolder& spline_holder)
   auto ee_motion = MakeEndeffectorVariables();
   vars.insert(vars.end(), ee_motion.begin(), ee_motion.end());
 
+  auto ee_yaw = MakeEndeffectorYawVariables();
+  vars.insert(vars.end(), ee_yaw.begin(), ee_yaw.end());
+
   auto ee_force = MakeForceVariables();
   vars.insert(vars.end(), ee_force.begin(), ee_force.end());
 
@@ -95,6 +98,7 @@ NlpFormulation::GetVariableSets (SplineHolder& spline_holder)
                                base_motion.at(1), // angular
                                params_.GetBasePolyDurations(),
                                ee_motion,
+                               ee_yaw,
                                ee_force,
                                ee_torque,
                                contact_schedule,
@@ -180,6 +184,61 @@ NlpFormulation::MakeEndeffectorVariables () const
     {
       nodes->AddStartBound(kPos, {X,Y,Z}, initial_ee_W_.at(ee));
       nodes->AddFinalBound(kPos, {X,Y,Z}, Vector3d(x,y,z));
+    }
+
+    vars.push_back(nodes);
+  }
+
+  return vars;
+}
+
+std::vector<NodesVariablesPhaseBased::Ptr>
+NlpFormulation::MakeEndeffectorYawVariables () const
+{
+  std::vector<NodesVariablesPhaseBased::Ptr> vars;
+
+  double T = params_.GetTotalTime();
+  for (int ee=0; ee<params_.GetEECount(); ee++) {
+    auto nodes = std::make_shared<NodesVariablesEEYaw>(
+                                              params_.GetPhaseCount(ee),
+                                              params_.ee_in_contact_at_start_.at(ee),
+                                              id::EEYawNodes(ee),
+                                              params_.ee_polynomials_per_swing_phase_);
+
+    // default initialization: keep yaw at 0 unless constrained by stance yaw tracking
+    Eigen::VectorXd yaw0(1);
+    yaw0 << 0.0;
+    nodes->SetByLinearInterpolation(yaw0, yaw0, T);
+
+    if (params_.enable_stance_yaw_tracking) {
+      // Backwards compatible behavior:
+      // Only enforce stance yaw tracking if the user actually provided stance yaw values.
+      if (ee >= params_.ee_stance_yaw_.size() || params_.ee_stance_yaw_.at(ee).empty()) {
+        vars.push_back(nodes);
+        continue;
+      }
+
+      const auto& stance_yaws = params_.ee_stance_yaw_.at(ee);
+      auto phase_count = params_.GetPhaseCount(ee);
+      int stance_id = 0;
+
+      for (int phase=0; phase<phase_count; phase++) {
+        int node_id = nodes->GetNodeIDAtStartOfPhase(phase);
+        if (!nodes->IsConstantNode(node_id)) {
+          continue;
+        }
+
+        if (stance_id >= stance_yaws.size()) {
+          throw std::runtime_error("ee_stance_yaw_ not provided for all stance phases");
+        }
+
+        Eigen::VectorXd yaw(1);
+        yaw << stance_yaws.at(stance_id);
+        nodes->AddBounds(node_id, kPos, {0}, yaw);
+
+        stance_id++;
+        phase++; // skip the swing phase (stance/swing alternate)
+      }
     }
 
     vars.push_back(nodes);

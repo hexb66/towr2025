@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <towr/variables/cartesian_dimensions.h>
 
 #include <iostream>
+#include <stdexcept>
 
 namespace towr {
 
@@ -60,12 +61,13 @@ BuildPolyInfos (int phase_count, bool first_phase_constant,
 NodesVariablesPhaseBased::NodesVariablesPhaseBased (int phase_count,
                                                     bool first_phase_constant,
                                                     const std::string& name,
-                                                    int n_polys_in_changing_phase)
+                                                    int n_polys_in_changing_phase,
+                                                    int n_dim)
     :NodesVariables(name)
 {
   polynomial_info_ = BuildPolyInfos(phase_count, first_phase_constant, n_polys_in_changing_phase);
 
-  n_dim_ = k3D;
+  n_dim_ = n_dim;
   int n_nodes = polynomial_info_.size()+1;
   nodes_  = std::vector<Node>(n_nodes, Node(n_dim_));
 }
@@ -144,9 +146,11 @@ NodesVariablesPhaseBased::GetPolyIDAtStartOfPhase (int phase) const
   for (int i=0; i<polynomial_info_.size(); ++i)
     if (polynomial_info_.at(i).phase_ == phase)
       return i;
+
+  throw std::runtime_error("phase not found in NodesVariablesPhaseBased::GetPolyIDAtStartOfPhase");
 }
 
-Eigen::Vector3d
+Eigen::VectorXd
 NodesVariablesPhaseBased::GetValueAtStartOfPhase (int phase) const
 {
   int node_id = GetNodeIDAtStartOfPhase(phase);
@@ -201,7 +205,8 @@ NodesVariablesEEMotion::NodesVariablesEEMotion(int phase_count,
     :NodesVariablesPhaseBased(phase_count,
                               is_in_contact_at_start, // contact phase for motion is constant
                               name,
-                              n_polys_in_changing_phase)
+                              n_polys_in_changing_phase,
+                              k3D)
 {
   index_to_node_value_info_ = GetPhaseBasedEEParameterization();
   SetNumberOfVariables(index_to_node_value_info_.size());
@@ -259,7 +264,8 @@ NodesVariablesEEForce::NodesVariablesEEForce(int phase_count,
     :NodesVariablesPhaseBased(phase_count,
                               !is_in_contact_at_start, // contact phase for force is non-constant
                               name,
-                              n_polys_in_changing_phase)
+                              n_polys_in_changing_phase,
+                              k3D)
 {
   index_to_node_value_info_ = GetPhaseBasedEEParameterization();
   SetNumberOfVariables(index_to_node_value_info_.size());
@@ -304,7 +310,8 @@ NodesVariablesEETorque::NodesVariablesEETorque(int phase_count,
     :NodesVariablesPhaseBased(phase_count,
                               !is_in_contact_at_start, // contact phase for torque is non-constant
                               name,
-                              n_polys_in_changing_phase)
+                              n_polys_in_changing_phase,
+                              k3D)
 {
   index_to_node_value_info_ = GetPhaseBasedEEParameterization();
   SetNumberOfVariables(index_to_node_value_info_.size());
@@ -336,6 +343,48 @@ NodesVariablesEETorque::GetPhaseBasedEEParameterization ()
       nodes_.at(id+1).at(kVel).setZero();
 
       id += 1; // already added next constant node, so skip
+    }
+  }
+
+  return index_map;
+}
+
+NodesVariablesEEYaw::NodesVariablesEEYaw(int phase_count,
+                                         bool is_in_contact_at_start,
+                                         const std::string& name,
+                                         int n_polys_in_changing_phase)
+    :NodesVariablesPhaseBased(phase_count,
+                              is_in_contact_at_start, // stance phase constant for yaw
+                              name,
+                              n_polys_in_changing_phase,
+                              /*n_dim=*/1)
+{
+  index_to_node_value_info_ = GetPhaseBasedEEParameterization();
+  SetNumberOfVariables(index_to_node_value_info_.size());
+}
+
+NodesVariablesEEForce::OptIndexMap
+NodesVariablesEEYaw::GetPhaseBasedEEParameterization ()
+{
+  OptIndexMap index_map;
+
+  int idx = 0; // index in variables set
+  for (int node_id=0; node_id<nodes_.size(); ++node_id) {
+    // swing node:
+    if (!IsConstantNode(node_id)) {
+      index_map[idx++].push_back(NodeValueInfo(node_id, kPos, 0));
+      index_map[idx++].push_back(NodeValueInfo(node_id, kVel, 0));
+    }
+    // stance node (next one will also be stance, so handle that one too):
+    else {
+      nodes_.at(node_id).at(kVel).setZero();
+      nodes_.at(node_id+1).at(kVel).setZero();
+
+      index_map[idx].push_back(NodeValueInfo(node_id,   kPos, 0));
+      index_map[idx].push_back(NodeValueInfo(node_id+1, kPos, 0));
+      idx++;
+
+      node_id += 1; // already added next constant node, so skip
     }
   }
 

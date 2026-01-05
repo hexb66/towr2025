@@ -37,6 +37,7 @@ bool SaveTrajectoryToCSV(const towr::SplineHolder& solution,
         csv_file << ",ee_pos_x_" << i << ",ee_pos_y_" << i << ",ee_pos_z_" << i
                  << ",ee_vel_x_" << i << ",ee_vel_y_" << i << ",ee_vel_z_" << i
                  << ",ee_acc_x_" << i << ",ee_acc_y_" << i << ",ee_acc_z_" << i
+                 << ",ee_yaw_" << i << ",ee_yaw_rate_" << i << ",ee_yaw_acc_" << i
                  << ",contact_force_x_" << i << ",contact_force_y_" << i << ",contact_force_z_" << i
                  << ",contact_torque_x_" << i << ",contact_torque_y_" << i << ",contact_torque_z_" << i
                  << ",is_contact_phase_" << i;
@@ -79,6 +80,12 @@ bool SaveTrajectoryToCSV(const towr::SplineHolder& solution,
             Eigen::Vector3d ee_pos = ee_state.p();
             Eigen::Vector3d ee_vel = ee_state.v();
             Eigen::Vector3d ee_acc = ee_state.a();
+
+            // 末端执行器 yaw
+            auto ee_yaw_state = solution.ee_yaw_.at(i)->GetPoint(t);
+            double ee_yaw = ee_yaw_state.p()(0);
+            double ee_yaw_rate = ee_yaw_state.v()(0);
+            double ee_yaw_acc = ee_yaw_state.a()(0);
             
             // 接触力和力矩
             Eigen::Vector3d contact_force = solution.ee_force_.at(i)->GetPoint(t).p();
@@ -91,6 +98,7 @@ bool SaveTrajectoryToCSV(const towr::SplineHolder& solution,
             csv_file << "," << ee_pos.x() << "," << ee_pos.y() << "," << ee_pos.z()
                      << "," << ee_vel.x() << "," << ee_vel.y() << "," << ee_vel.z()
                      << "," << ee_acc.x() << "," << ee_acc.y() << "," << ee_acc.z()
+                     << "," << ee_yaw << "," << ee_yaw_rate << "," << ee_yaw_acc
                      << "," << contact_force.x() << "," << contact_force.y() << "," << contact_force.z()
                      << "," << contact_torque.x() << "," << contact_torque.y() << "," << contact_torque.z()
                      << "," << (is_contact ? 1 : 0);

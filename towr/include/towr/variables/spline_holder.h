@@ -60,6 +60,7 @@ struct SplineHolder {
                 NodesVariables::Ptr base_ang,
                 const std::vector<double>& base_poly_durations,
                 std::vector<NodesVariablesPhaseBased::Ptr> ee_motion,
+                std::vector<NodesVariablesPhaseBased::Ptr> ee_yaw,
                 std::vector<NodesVariablesPhaseBased::Ptr> ee_force,
                 std::vector<NodesVariablesPhaseBased::Ptr> ee_torque,
                 std::vector<PhaseDurations::Ptr> phase_durations,
@@ -74,6 +75,7 @@ struct SplineHolder {
   NodeSpline::Ptr base_angular_;
 
   std::vector<NodeSpline::Ptr> ee_motion_;
+  std::vector<NodeSpline::Ptr> ee_yaw_;
   std::vector<NodeSpline::Ptr> ee_force_;
   std::vector<NodeSpline::Ptr> ee_torque_;
   std::vector<PhaseDurations::Ptr> phase_durations_;

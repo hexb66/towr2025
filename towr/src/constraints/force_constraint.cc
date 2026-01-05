@@ -68,7 +68,7 @@ ForceConstraint::GetValues () const
   auto force_nodes = ee_force_->GetNodes();
   for (int f_node_id : pure_stance_force_node_ids_) {
     int phase  = ee_force_->GetPhase(f_node_id);
-    Vector3d p = ee_motion_->GetValueAtStartOfPhase(phase); // doesn't change during stance phase
+    Vector3d p = ee_motion_->GetValueAtStartOfPhase(phase).head<3>(); // doesn't change during stance phase
     Vector3d n = terrain_->GetNormalizedBasis(HeightMap::Normal, p.x(), p.y());
     Vector3d f = force_nodes.at(f_node_id).p();
 
@@ -113,7 +113,7 @@ ForceConstraint::FillJacobianBlock (std::string var_set,
     for (int f_node_id : pure_stance_force_node_ids_) {
       // unilateral force
       int phase   = ee_force_->GetPhase(f_node_id);
-      Vector3d p  = ee_motion_->GetValueAtStartOfPhase(phase); // doesn't change during phase
+      Vector3d p  = ee_motion_->GetValueAtStartOfPhase(phase).head<3>(); // doesn't change during phase
       Vector3d n  = terrain_->GetNormalizedBasis(HeightMap::Normal,   p.x(), p.y());
       Vector3d t1 = terrain_->GetNormalizedBasis(HeightMap::Tangent1, p.x(), p.y());
       Vector3d t2 = terrain_->GetNormalizedBasis(HeightMap::Tangent2, p.x(), p.y());
@@ -142,7 +142,7 @@ ForceConstraint::FillJacobianBlock (std::string var_set,
       int phase  = ee_force_->GetPhase(f_node_id);
       int ee_node_id = ee_motion_->GetNodeIDAtStartOfPhase(phase);
 
-      Vector3d p = ee_motion_->GetValueAtStartOfPhase(phase); // doesn't change during pahse
+      Vector3d p = ee_motion_->GetValueAtStartOfPhase(phase).head<3>(); // doesn't change during pahse
       Vector3d f = force_nodes.at(f_node_id).p();
 
       for (auto dim : {X_,Y_}) {
