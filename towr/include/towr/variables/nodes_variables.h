@@ -186,6 +186,36 @@ public:
                                 double t_total);
 
   /**
+   * @brief Initializes a 3D endeffector position by interpolating in base frame.
+   *
+   * Instead of linearly interpolating endeffector positions in world frame, this
+   * method linearly interpolates the endeffector position relative to the base
+   * (in base frame) and maps it to world using a linearly-interpolated base pose.
+   *
+   * This is useful for motions with large base rotation (e.g. turning jumps),
+   * where world-frame interpolation gives a poor initial guess.
+   *
+   * Assumptions:
+   * - this variable set represents a 3D position (x,y,z)
+   * - base orientation is given as world Euler (roll,pitch,yaw)
+   *
+   * @param ee_initial_W  Endeffector initial position in world.
+   * @param ee_final_W    Endeffector final position in world.
+   * @param base_pos_initial_W Base initial position in world.
+   * @param base_pos_final_W   Base final position in world.
+   * @param base_rpy_initial_W Base initial Euler (roll,pitch,yaw) in world.
+   * @param base_rpy_final_W   Base final Euler (roll,pitch,yaw) in world.
+   * @param t_total Total motion duration [s].
+   */
+  void SetByLinearInterpolationRelativeToBase(const Eigen::Vector3d& ee_initial_W,
+                                             const Eigen::Vector3d& ee_final_W,
+                                             const Eigen::Vector3d& base_pos_initial_W,
+                                             const Eigen::Vector3d& base_pos_final_W,
+                                             const Eigen::Vector3d& base_rpy_initial_W,
+                                             const Eigen::Vector3d& base_rpy_final_W,
+                                             double t_total);
+
+  /**
    * @brief Restricts the first node in the spline.
    * @param deriv Which derivative (pos,vel,...) should be restricted.
    * @param dimensions Which dimensions (x,y,z) should be restricted.

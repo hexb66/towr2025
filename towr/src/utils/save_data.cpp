@@ -37,7 +37,9 @@ bool SaveTrajectoryToCSV(const towr::SplineHolder& solution,
         csv_file << ",ee_pos_x_" << i << ",ee_pos_y_" << i << ",ee_pos_z_" << i
                  << ",ee_vel_x_" << i << ",ee_vel_y_" << i << ",ee_vel_z_" << i
                  << ",ee_acc_x_" << i << ",ee_acc_y_" << i << ",ee_acc_z_" << i
-                 << ",ee_yaw_" << i << ",ee_yaw_rate_" << i << ",ee_yaw_acc_" << i
+                 << ",ee_euler_roll_" << i << ",ee_euler_pitch_" << i << ",ee_euler_yaw_" << i
+                 << ",ee_omega_x_" << i << ",ee_omega_y_" << i << ",ee_omega_z_" << i
+                 << ",ee_omegadot_x_" << i << ",ee_omegadot_y_" << i << ",ee_omegadot_z_" << i
                  << ",contact_force_x_" << i << ",contact_force_y_" << i << ",contact_force_z_" << i
                  << ",contact_torque_x_" << i << ",contact_torque_y_" << i << ",contact_torque_z_" << i
                  << ",is_contact_phase_" << i;
@@ -81,11 +83,11 @@ bool SaveTrajectoryToCSV(const towr::SplineHolder& solution,
             Eigen::Vector3d ee_vel = ee_state.v();
             Eigen::Vector3d ee_acc = ee_state.a();
 
-            // 末端执行器 yaw
-            auto ee_yaw_state = solution.ee_yaw_.at(i)->GetPoint(t);
-            double ee_yaw = ee_yaw_state.p()(0);
-            double ee_yaw_rate = ee_yaw_state.v()(0);
-            double ee_yaw_acc = ee_yaw_state.a()(0);
+            // 末端执行器姿态（世界系 Euler roll/pitch/yaw）
+            auto ee_ang_state = solution.ee_ang_.at(i)->GetPoint(t);
+            Eigen::Vector3d ee_euler = ee_ang_state.p();
+            Eigen::Vector3d ee_omega = ee_ang_state.v();
+            Eigen::Vector3d ee_omegadot = ee_ang_state.a();
             
             // 接触力和力矩
             Eigen::Vector3d contact_force = solution.ee_force_.at(i)->GetPoint(t).p();
@@ -98,7 +100,9 @@ bool SaveTrajectoryToCSV(const towr::SplineHolder& solution,
             csv_file << "," << ee_pos.x() << "," << ee_pos.y() << "," << ee_pos.z()
                      << "," << ee_vel.x() << "," << ee_vel.y() << "," << ee_vel.z()
                      << "," << ee_acc.x() << "," << ee_acc.y() << "," << ee_acc.z()
-                     << "," << ee_yaw << "," << ee_yaw_rate << "," << ee_yaw_acc
+                     << "," << ee_euler.x() << "," << ee_euler.y() << "," << ee_euler.z()
+                     << "," << ee_omega.x() << "," << ee_omega.y() << "," << ee_omega.z()
+                     << "," << ee_omegadot.x() << "," << ee_omegadot.y() << "," << ee_omegadot.z()
                      << "," << contact_force.x() << "," << contact_force.y() << "," << contact_force.z()
                      << "," << contact_torque.x() << "," << contact_torque.y() << "," << contact_torque.z()
                      << "," << (is_contact ? 1 : 0);

@@ -28,6 +28,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 
 #include <towr/variables/nodes_variables.h>
+#include <towr/variables/cartesian_dimensions.h>
+#include <towr/variables/euler_converter.h>
+
+#include <stdexcept>
 
 namespace towr {
 
@@ -147,6 +151,69 @@ NodesVariables::SetByLinearInterpolation(const VectorXd& initial_val,
       }
     }
   }
+}
+
+void
+NodesVariables::SetByLinearInterpolationRelativeToBase(const Eigen::Vector3d& ee_initial_W,
+                                                       const Eigen::Vector3d& ee_final_W,
+                                                       const Eigen::Vector3d& base_pos_initial_W,
+                                                       const Eigen::Vector3d& base_pos_final_W,
+                                                       const Eigen::Vector3d& base_rpy_initial_W,
+                                                       const Eigen::Vector3d& base_rpy_final_W,
+                                                       double t_total)
+{
+  if (GetDim() != k3D) {
+    throw std::runtime_error("SetByLinearInterpolationRelativeToBase requires 3D variables.");
+  }
+  if (t_total <= 0.0) {
+    throw std::runtime_error("SetByLinearInterpolationRelativeToBase requires t_total > 0.");
+  }
+
+  const int num_nodes = nodes_.size();
+  if (num_nodes < 2) {
+    return;
+  }
+
+  // Compute relative positions in base frame at start/end.
+  const Eigen::Matrix3d w_R_b0 = EulerConverter::GetRotationMatrixBaseToWorld(base_rpy_initial_W);
+  const Eigen::Matrix3d w_R_bT = EulerConverter::GetRotationMatrixBaseToWorld(base_rpy_final_W);
+
+  const Eigen::Vector3d r0_B = w_R_b0.transpose() * (ee_initial_W - base_pos_initial_W);
+  const Eigen::Vector3d rT_B = w_R_bT.transpose() * (ee_final_W - base_pos_final_W);
+
+  const Eigen::Vector3d dp_B = rT_B - r0_B;
+  const Eigen::Vector3d avg_vel_B = dp_B / t_total;
+  const Eigen::Vector3d base_avg_vel_W = (base_pos_final_W - base_pos_initial_W) / t_total;
+
+  // Same pattern as SetByLinearInterpolation():
+  // use node id to compute interpolation fraction, write pos/vel for optimized node values.
+  for (int idx=0; idx<GetRows(); ++idx) {
+    for (auto nvi : GetNodeValuesInfo(idx)) {
+      const double alpha = nvi.id_/static_cast<double>(num_nodes-1);
+
+      const Eigen::Vector3d base_pos_W = (1.0-alpha)*base_pos_initial_W + alpha*base_pos_final_W;
+      const Eigen::Vector3d base_rpy_W = (1.0-alpha)*base_rpy_initial_W + alpha*base_rpy_final_W;
+      const Eigen::Matrix3d w_R_b = EulerConverter::GetRotationMatrixBaseToWorld(base_rpy_W);
+
+      const Eigen::Vector3d r_B = r0_B + alpha*dp_B;
+
+      if (nvi.deriv_ == kPos) {
+        const Eigen::Vector3d ee_pos_W = base_pos_W + w_R_b*r_B;
+        nodes_.at(nvi.id_).at(kPos)(nvi.dim_) = ee_pos_W(nvi.dim_);
+      }
+
+      if (nvi.deriv_ == kVel) {
+        // Simple initial guess (same style as SetByLinearInterpolation):
+        // base translation velocity + rotated average relative velocity in base frame.
+        const Eigen::Vector3d ee_vel_W = base_avg_vel_W + w_R_b*avg_vel_B;
+        nodes_.at(nvi.id_).at(kVel)(nvi.dim_) = ee_vel_W(nvi.dim_);
+      }
+    }
+  }
+
+  // Sync phase-based mappings: if one optimization variable maps to multiple node values
+  // (e.g. stance start/end), make them consistent by applying the current x to all mapped nodes.
+  SetVariables(GetValues());
 }
 
 void

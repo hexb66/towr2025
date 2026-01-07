@@ -349,22 +349,22 @@ NodesVariablesEETorque::GetPhaseBasedEEParameterization ()
   return index_map;
 }
 
-NodesVariablesEEYaw::NodesVariablesEEYaw(int phase_count,
+NodesVariablesEEAng::NodesVariablesEEAng(int phase_count,
                                          bool is_in_contact_at_start,
                                          const std::string& name,
                                          int n_polys_in_changing_phase)
     :NodesVariablesPhaseBased(phase_count,
-                              is_in_contact_at_start, // stance phase constant for yaw
+                              is_in_contact_at_start, // stance phase constant for orientation
                               name,
                               n_polys_in_changing_phase,
-                              /*n_dim=*/1)
+                              /*n_dim=*/k3D)
 {
   index_to_node_value_info_ = GetPhaseBasedEEParameterization();
   SetNumberOfVariables(index_to_node_value_info_.size());
 }
 
 NodesVariablesEEForce::OptIndexMap
-NodesVariablesEEYaw::GetPhaseBasedEEParameterization ()
+NodesVariablesEEAng::GetPhaseBasedEEParameterization ()
 {
   OptIndexMap index_map;
 
@@ -372,17 +372,21 @@ NodesVariablesEEYaw::GetPhaseBasedEEParameterization ()
   for (int node_id=0; node_id<nodes_.size(); ++node_id) {
     // swing node:
     if (!IsConstantNode(node_id)) {
-      index_map[idx++].push_back(NodeValueInfo(node_id, kPos, 0));
-      index_map[idx++].push_back(NodeValueInfo(node_id, kVel, 0));
+      for (int dim=0; dim<GetDim(); ++dim) {
+        index_map[idx++].push_back(NodeValueInfo(node_id, kPos, dim));
+        index_map[idx++].push_back(NodeValueInfo(node_id, kVel, dim));
+      }
     }
     // stance node (next one will also be stance, so handle that one too):
     else {
       nodes_.at(node_id).at(kVel).setZero();
       nodes_.at(node_id+1).at(kVel).setZero();
 
-      index_map[idx].push_back(NodeValueInfo(node_id,   kPos, 0));
-      index_map[idx].push_back(NodeValueInfo(node_id+1, kPos, 0));
-      idx++;
+      for (int dim=0; dim<GetDim(); ++dim) {
+        index_map[idx].push_back(NodeValueInfo(node_id,   kPos, dim));
+        index_map[idx].push_back(NodeValueInfo(node_id+1, kPos, dim));
+        idx++;
+      }
 
       node_id += 1; // already added next constant node, so skip
     }

@@ -80,7 +80,7 @@ public:
    * @param var_name  The name given to this set of optimization variables.
    * @param n_polys_in_changing_phase  How many polynomials should be used to
    *                                   paramerize each non-constant phase.
-   * @param n_dim  Dimensionality of the node (default 3 for xyz). Use 1 for yaw.
+   * @param n_dim  Dimensionality of the node (default 3 for xyz). Use 1 for scalar splines.
    */
   NodesVariablesPhaseBased (int phase_count,
                             bool first_phase_constant,
@@ -201,21 +201,21 @@ public:
 };
 
 /**
- * @brief Variables defining the endeffector yaw (world yaw) trajectory.
+ * @brief Variables defining the endeffector orientation (world Euler roll, pitch, yaw).
  *
  * Parameterization follows the endeffector motion:
- * - stance phase is constant (yaw does not change)
- * - swing phase can change (yaw and yaw-rate optimized)
+ * - stance phase is constant (orientation does not change)
+ * - swing phase can change (rpy and rpy-rates optimized)
  *
  * @ingroup Variables
  */
-class NodesVariablesEEYaw : public NodesVariablesPhaseBased {
+class NodesVariablesEEAng : public NodesVariablesPhaseBased {
 public:
-  NodesVariablesEEYaw(int phase_count,
+  NodesVariablesEEAng(int phase_count,
                       bool is_in_contact_at_start,
                       const std::string& name,
                       int n_polys_in_changing_phase);
-  virtual ~NodesVariablesEEYaw() = default;
+  virtual ~NodesVariablesEEAng() = default;
   OptIndexMap GetPhaseBasedEEParameterization ();
 };
 

@@ -43,7 +43,7 @@ namespace id {
 static const std::string base_lin_nodes    = "base-lin";
 static const std::string base_ang_nodes    = "base-ang";
 static const std::string ee_motion_nodes   = "ee-motion_";
-static const std::string ee_yaw_nodes      = "ee-yaw_";
+static const std::string ee_ang_nodes      = "ee-ang_";
 static const std::string ee_force_nodes    = "ee-force_";
 static const std::string ee_torque_nodes   = "ee-torque_";
 static const std::string contact_schedule  = "ee-schedule";
@@ -54,9 +54,9 @@ static std::string EEMotionNodes(uint ee)
   return  ee_motion_nodes + std::to_string(ee);
 }
 
-static std::string EEYawNodes(uint ee)
+static std::string EEAngNodes(uint ee)
 {
-  return  ee_yaw_nodes + std::to_string(ee);
+  return  ee_ang_nodes + std::to_string(ee);
 }
 
 static std::string EEForceNodes(uint ee)

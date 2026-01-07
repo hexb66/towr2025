@@ -31,7 +31,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define TOWR_OPTIMIZATION_PARAMETERS_H_
 
 #include <vector>
-#include <array>
 #include <utility> // std::pair, std::make_pair
 
 namespace towr {
@@ -174,9 +173,9 @@ public:
   /// The position of the foot in the stance phase.
   std::vector<VecPos> ee_stance_position_;
 
-  /// The yaw [rad] of the endeffector in each stance phase (world yaw).
-  /// ee_stance_yaw_[ee][k] corresponds to the k-th stance phase (in time order).
-  std::vector<std::vector<double>> ee_stance_yaw_;
+  /// The endeffector orientation in each stance phase (world Euler roll, pitch, yaw).
+  /// ee_stance_rpy_[ee][k] corresponds to the k-th stance phase (in time order).
+  std::vector<VecPos> ee_stance_rpy_;
 
   /// True if the foot is initially in contact with the terrain.
   std::vector<bool> ee_in_contact_at_start_;
@@ -214,8 +213,8 @@ public:
   // Stance position tracking for each step, true by default
   bool enable_stance_tracking = true;
 
-  // Stance yaw tracking for each step, true by default
-  bool enable_stance_yaw_tracking = true;
+  // Stance rpy tracking for each step, true by default
+  bool enable_stance_rpy_tracking = true;
 
   /// Tangential torque limits [Nm]
   double torque_tx_min_;
