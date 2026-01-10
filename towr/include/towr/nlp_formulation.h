@@ -105,6 +105,10 @@ public:
   Parameters params_;
 
 private:
+  // Stores the most recently constructed spline holder from GetVariableSets().
+  // This enables cost terms that need access to the splines.
+  mutable SplineHolder spline_holder_for_costs_;
+
   // variables
   std::vector<NodesVariables::Ptr> MakeBaseVariables() const;
   std::vector<NodesVariablesPhaseBased::Ptr> MakeEndeffectorVariables() const;

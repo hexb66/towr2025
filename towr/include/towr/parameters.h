@@ -152,7 +152,9 @@ public:
    *  problem.
    */
   enum CostName       { ForcesCostID,    ///< sets NodeCost on force nodes
-                        EEMotionCostID   ///< sets NodeCost on endeffector velocity
+                        EEMotionCostID,  ///< sets NodeCost on endeffector velocity
+                        EnergyCostID,    ///< sets EnergyCost (force/torque effort proxy)
+                        AngMomCostID     ///< sets AngularMomentumCost
   };
 
   using CostWeights      = std::vector<std::pair<CostName, double>>;
@@ -195,6 +197,12 @@ public:
   /// Interval at which the base motion constraint is enforced.
   double dt_constraint_base_motion_;
 
+  /// Interval at which the force constraint is enforced (0 => node-only ForceConstraint).
+  double dt_constraint_force_;
+
+  /// Interval at which the torque constraint is enforced (0 => node-only TorqueConstraint).
+  double dt_constraint_torque_;
+
   /// Fixed duration of each cubic polynomial describing the base motion.
   double duration_base_polynomial_;
 
@@ -215,6 +223,25 @@ public:
 
   // Stance rpy tracking for each step, true by default
   bool enable_stance_rpy_tracking = true;
+
+  // ---- Swing-phase base-frame foot tracking (soft cost) ----
+  // If enabled, during swing phases penalize deviation of endeffector position
+  // in base frame from its initial value. Helps turning jumps keep feet at sides.
+  bool enable_swing_ee_base_pos_tracking = false;
+  double swing_ee_base_pos_tracking_weight_ = 1e-2;
+  double dt_cost_swing_ee_base_pos_tracking_ = 0.05;
+
+  // ---- Base attitude hard constraints (node-bounds) ----
+  // If enabled, fixes base pitch (world Euler Y) to a constant value for the whole trajectory.
+  // Note: implemented by fixing pitch position and pitch velocity at ALL base angular nodes.
+  bool constrain_base_pitch_ = false;
+  double base_pitch_target_ = 0.0;
+
+  // ---- Optional constraint: endeffector trajectory equality ----
+  // ---- Cost settings ----
+  double dt_cost_energy_ = 0.02;
+  double energy_cost_torque_weight_ = 1.0; // relative weight for ||tau||^2 vs ||f||^2
+  double dt_cost_ang_mom_ = 0.02;
 
   /// Tangential torque limits [Nm]
   double torque_tx_min_;

@@ -60,10 +60,21 @@ Parameters::Parameters ()
   // Swing height limits - will be resized based on number of endeffectors
   // Users can modify these after construction or they will be auto-initialized
   // Default: min = 0.02m (2cm), max = 0.5m
+
+  // Base attitude hard constraints (off by default)
+  constrain_base_pitch_ = false;
+  base_pitch_target_ = 0.0;
+
+  // Cost settings
+  dt_cost_energy_ = 0.02;
+  energy_cost_torque_weight_ = 1.0;
+  dt_cost_ang_mom_ = 0.02;
   
   dt_constraint_range_of_motion_ = 0.08;
   dt_constraint_dynamic_ = 0.1;
   dt_constraint_base_motion_ = duration_base_polynomial_/4.; // only for base RoM constraint
+  dt_constraint_force_ = 0.02; // enforce unilateral/friction at dense times (helps interpolated trajectories)
+  dt_constraint_torque_ = 0.02; // enforce torque limits at dense times (helps interpolated trajectories)
   bound_phase_duration_ = std::make_pair(0.2, 1.0);  // used only when optimizing phase durations, so gait
 
   // a minimal set of basic constraints

@@ -203,4 +203,10 @@ SingleRigidBodyDynamics::GetJacobianWrtEEPos (const Jac& jac_ee_pos, EE ee) cons
   return jac;
 }
 
+Eigen::Matrix3d
+SingleRigidBodyDynamics::GetInertiaB() const
+{
+  return Eigen::Matrix3d(I_b);
+}
+
 } /* namespace towr */

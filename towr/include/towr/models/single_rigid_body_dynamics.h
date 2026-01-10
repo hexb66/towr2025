@@ -89,6 +89,13 @@ public:
 
   Jac GetJacobianWrtEEPos(const Jac& jac_ee_pos, EE) const override;
 
+  /**
+   * @brief Inertia around CoM expressed in base frame.
+   *
+   * Exposed to enable costs/regularization terms (e.g. angular momentum cost).
+   */
+  Eigen::Matrix3d GetInertiaB() const;
+
 private:
   /** Inertia of entire robot around the CoM expressed in a frame anchored
    *  in the base.

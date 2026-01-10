@@ -38,7 +38,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <towr/constraints/base_motion_constraint.h>
 #include <towr/constraints/dynamic_constraint.h>
 #include <towr/constraints/force_constraint.h>
+#include <towr/constraints/force_constraint_discretized.h>
 #include <towr/constraints/torque_constraint.h>
+#include <towr/constraints/torque_constraint_discretized.h>
 #include <towr/constraints/range_of_motion_constraint.h>
 #include <towr/constraints/swing_constraint.h>
 #include <towr/constraints/terrain_constraint.h>
@@ -48,6 +50,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <towr/constraints/base_height_constraint.h>
 
 #include <towr/costs/node_cost.h>
+#include <towr/costs/ee_base_pos_cost.h>
+#include <towr/costs/energy_cost.h>
+#include <towr/costs/angular_momentum_cost.h>
 #include <towr/variables/nodes_variables_all.h>
 
 #include <iostream>
@@ -103,6 +108,7 @@ NlpFormulation::GetVariableSets (SplineHolder& spline_holder)
                                ee_torque,
                                contact_schedule,
                                params_.IsOptimizeTimings());
+  spline_holder_for_costs_ = spline_holder;
   return vars;
 }
 
@@ -137,6 +143,21 @@ NlpFormulation::MakeBaseVariables () const
   spline_ang->AddFinalBound(kPos, params_.bounds_final_ang_pos_, final_base_.ang.p());
   spline_ang->AddFinalBound(kVel, params_.bounds_final_ang_vel_, final_base_.ang.v());
   spline_ang->AddFinalBound(kAcc, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
+
+  // Optional: hard-fix base pitch (world Euler Y) for the entire trajectory.
+  // We bind both pitch position and pitch velocity at all nodes so the Hermite
+  // polynomials cannot "bulge" between nodes.
+  if (params_.constrain_base_pitch_) {
+    Vector3d ang_target = Vector3d::Zero();
+    ang_target(Y) = params_.base_pitch_target_;
+    Vector3d ang_vel_target = Vector3d::Zero();
+
+    for (int node_id = 0; node_id < n_nodes; ++node_id) {
+      spline_ang->AddBounds(node_id, kPos, {Y}, ang_target);
+      spline_ang->AddBounds(node_id, kVel, {Y}, ang_vel_target);
+    }
+  }
+
   vars.push_back(spline_ang);
 
   return vars;
@@ -457,10 +478,19 @@ NlpFormulation::MakeForceConstraint () const
   ContraintPtrVec constraints;
 
   for (int ee=0; ee<params_.GetEECount(); ee++) {
-    auto c = std::make_shared<ForceConstraint>(terrain_,
-                                               params_.force_limit_in_normal_direction_,
-                                               ee);
-    constraints.push_back(c);
+    if (params_.dt_constraint_force_ > 0.0) {
+      constraints.push_back(std::make_shared<ForceConstraintDiscretized>(
+          terrain_,
+          params_.GetTotalTime(),
+          params_.dt_constraint_force_,
+          params_.force_limit_in_normal_direction_,
+          ee,
+          spline_holder_for_costs_));
+    } else {
+      constraints.push_back(std::make_shared<ForceConstraint>(terrain_,
+                                                              params_.force_limit_in_normal_direction_,
+                                                              ee));
+    }
   }
 
   return constraints;
@@ -472,14 +502,27 @@ NlpFormulation::MakeTorqueConstraint () const
   ContraintPtrVec constraints;
 
   for (int ee=0; ee<params_.GetEECount(); ee++) {
-    auto c = std::make_shared<TorqueConstraint>(terrain_,
-                                                params_.torque_tx_min_,
-                                                params_.torque_tx_max_,
-                                                params_.torque_ty_min_,
-                                                params_.torque_ty_max_,
-                                                params_.torque_k_friction_,
-                                                ee);
-    constraints.push_back(c);
+    if (params_.dt_constraint_torque_ > 0.0) {
+      constraints.push_back(std::make_shared<TorqueConstraintDiscretized>(
+          terrain_,
+          params_.GetTotalTime(),
+          params_.dt_constraint_torque_,
+          params_.torque_tx_min_,
+          params_.torque_tx_max_,
+          params_.torque_ty_min_,
+          params_.torque_ty_max_,
+          params_.torque_k_friction_,
+          ee,
+          spline_holder_for_costs_));
+    } else {
+      constraints.push_back(std::make_shared<TorqueConstraint>(terrain_,
+                                                               params_.torque_tx_min_,
+                                                               params_.torque_tx_max_,
+                                                               params_.torque_ty_min_,
+                                                               params_.torque_ty_max_,
+                                                               params_.torque_k_friction_,
+                                                               ee));
+    }
   }
 
   return constraints;
@@ -533,6 +576,21 @@ NlpFormulation::GetCosts() const
     for (auto c : GetCost(pair.first, pair.second))
       costs.push_back(c);
 
+  // Softly keep feet at robot sides during swing by tracking base-frame position.
+  if (params_.enable_swing_ee_base_pos_tracking &&
+      params_.swing_ee_base_pos_tracking_weight_ > 0.0 &&
+      spline_holder_for_costs_.base_linear_ && spline_holder_for_costs_.base_angular_) {
+    Eigen::Matrix3d w_R_b0 = EulerConverter::GetRotationMatrixBaseToWorld(initial_base_.ang.p());
+    Eigen::Matrix3d b_R_w0 = w_R_b0.transpose();
+    for (int ee=0; ee<params_.GetEECount(); ++ee) {
+      Eigen::Vector3d r_W0 = initial_ee_W_.at(ee) - initial_base_.lin.p();
+      Eigen::Vector3d r_B0 = b_R_w0 * r_W0;
+      costs.push_back(std::make_shared<EEBasePosCost>(spline_holder_for_costs_, ee, r_B0,
+                                                      params_.swing_ee_base_pos_tracking_weight_,
+                                                      params_.dt_cost_swing_ee_base_pos_tracking_));
+    }
+  }
+
   return costs;
 }
 
@@ -542,6 +600,14 @@ NlpFormulation::GetCost(const Parameters::CostName& name, double weight) const
   switch (name) {
     case Parameters::ForcesCostID:   return MakeForcesCost(weight);
     case Parameters::EEMotionCostID: return MakeEEMotionCost(weight);
+    case Parameters::EnergyCostID:   return {std::make_shared<EnergyCost>(spline_holder_for_costs_,
+                                                                          weight,
+                                                                          params_.energy_cost_torque_weight_,
+                                                                          params_.dt_cost_energy_)};
+    case Parameters::AngMomCostID:   return {std::make_shared<AngularMomentumCost>(spline_holder_for_costs_,
+                                                                                   model_.dynamic_model_,
+                                                                                   weight,
+                                                                                   params_.dt_cost_ang_mom_)};
     default: throw std::runtime_error("cost not defined!");
   }
 }

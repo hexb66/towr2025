@@ -41,7 +41,9 @@ add_library(${PROJECT_NAME} SHARED
   src/constraints/terrain_constraint_hard.cc
   src/constraints/swing_constraint.cc
   src/constraints/force_constraint.cc
+  src/constraints/force_constraint_discretized.cc
   src/constraints/torque_constraint.cc
+  src/constraints/torque_constraint_discretized.cc
   src/constraints/total_duration_constraint.cc
   src/constraints/dynamic_constraint.cc
   src/constraints/range_of_motion_constraint.cc
@@ -51,7 +53,10 @@ add_library(${PROJECT_NAME} SHARED
   # costs
   src/costs/node_cost.cc
   src/costs/soft_constraint.cc
+  src/costs/ee_base_pos_cost.cc
   src/costs/base_height_cost.cc
+  src/costs/energy_cost.cc
+  src/costs/angular_momentum_cost.cc
   # initialization
   src/initialization/gait_generator.cc
   src/initialization/monoped_gait_generator.cc
