@@ -32,6 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <vector>
 #include <utility> // std::pair, std::make_pair
+#include <ifopt/bounds.h>
 
 namespace towr {
 
@@ -289,6 +290,9 @@ public:
 
   /// Total duration [s] of the motion.
   double GetTotalTime() const;
+
+  /// Range of motion for base
+  ifopt::Bounds base_rom_ax, base_rom_ay, base_rom_lz;
 };
 
 } // namespace towr

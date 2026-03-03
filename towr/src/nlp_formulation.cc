@@ -377,6 +377,9 @@ NlpFormulation::MakeBaseRangeOfMotionConstraint (const SplineHolder& s) const
 {
   return {std::make_shared<BaseMotionConstraint>(params_.GetTotalTime(),
                                                  params_.dt_constraint_base_motion_,
+                                                 params_.base_rom_ax,
+                                                 params_.base_rom_ay,
+                                                 params_.base_rom_lz,
                                                  s)};
 }
 

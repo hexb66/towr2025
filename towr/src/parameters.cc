@@ -97,6 +97,11 @@ Parameters::Parameters ()
 
   // additional restrictions are set directly on the variables in nlp_factory,
   // such as e.g. initial and endeffector,...
+
+  // Default range of motion for base
+  base_rom_ax = ifopt::NoBound;
+  base_rom_ay = ifopt::NoBound;
+  base_rom_lz = ifopt::NoBound;
 }
 
 void

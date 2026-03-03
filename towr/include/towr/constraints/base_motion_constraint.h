@@ -53,7 +53,7 @@ public:
    * @param dt The discretization interval of the constraints.
    * @param spline_holder  Holds pointers to the base variables.
    */
-  BaseMotionConstraint (double T, double dt, const SplineHolder& spline_holder);
+  BaseMotionConstraint (double T, double dt, Bounds ax, Bounds ay, Bounds lz, const SplineHolder& spline_holder);
   virtual ~BaseMotionConstraint () = default;
 
   void UpdateConstraintAtInstance (double t, int k, VectorXd& g) const override;
