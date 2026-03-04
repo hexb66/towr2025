@@ -243,6 +243,12 @@ public:
    void AddBounds(int node_id, Dx deriv, const std::vector<int>& dim,
     const VectorXd& values);
 
+  /**
+   * @brief Bounds a specific node with separate lower and upper limits.
+   */
+   void AddBounds(int node_id, Dx deriv, const std::vector<int>& dim,
+    const VectorXd& lower, const VectorXd& upper);
+
 protected:
   /**
    * @param n_dim  The number of dimensions (x,y,..) each node has.
@@ -268,6 +274,7 @@ private:
    * @param value     The value to set the bounds to.
    */
   void AddBound(const NodeValueInfo& node_info, double value);
+  void AddBound(const NodeValueInfo& node_info, double lower, double upper);
 };
 
 } /* namespace towr */

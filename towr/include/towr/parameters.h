@@ -31,8 +31,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define TOWR_OPTIMIZATION_PARAMETERS_H_
 
 #include <vector>
-#include <utility> // std::pair, std::make_pair
+#include <utility>
+#include <Eigen/Dense>
 #include <ifopt/bounds.h>
+#include <towr/variables/state.h>
 
 namespace towr {
 
@@ -293,6 +295,44 @@ public:
 
   /// Range of motion for base
   ifopt::Bounds base_rom_ax, base_rom_ay, base_rom_lz;
+
+  /// Base trajectory waypoint: constrain position or velocity at a specific time.
+  /// Set tolerance to 0 for exact constraint, >0 for a range [value-tol, value+tol].
+  struct BaseWaypoint {
+    double t;                 ///< time [s] along the trajectory
+    Dx deriv;                 ///< kPos or kVel
+    std::vector<int> dims;    ///< which dimensions to constrain, e.g. {Z} or {X,Y,Z}
+    Eigen::Vector3d value;
+    Eigen::Vector3d tolerance = Eigen::Vector3d::Zero(); ///< per-axis tolerance (0 = exact)
+  };
+
+  /// Intermediate waypoints for base linear motion (applied as hard bounds on nodes).
+  std::vector<BaseWaypoint> base_lin_waypoints_;
+
+  /// Intermediate waypoints for base angular motion (applied as hard bounds on nodes).
+  std::vector<BaseWaypoint> base_ang_waypoints_;
+
+  /// Linear combination constraint across endeffector positions or angles.
+  /// Enforces |sum_i(coeff_i * ee_i[dim_i])| <= tolerance at discretized times.
+  struct EELinearConstraintDef {
+    struct Term { int ee; int dim; double coeff; };
+    enum Target { Motion, Angle };
+    Target target = Motion;
+    Dx deriv = kPos;
+    std::vector<Term> terms;
+    double tolerance;
+    double dt = 0.1;
+  };
+
+  std::vector<EELinearConstraintDef> ee_linear_constraints_;
+
+  /// Dimensions to relax in RoM constraint during swing (flight) phases.
+  /// Empty = no relaxation (default). E.g. {2} for Z-only, {0,1,2} for all.
+  std::vector<int> rom_swing_relax_dims_;
+
+  /// Angular parameterization for base orientation.
+  enum AngularRepresentation { EulerZYX, RotationVector };
+  AngularRepresentation angular_rep_ = EulerZYX;
 };
 
 } // namespace towr

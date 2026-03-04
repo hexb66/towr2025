@@ -29,6 +29,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <towr/constraints/range_of_motion_constraint.h>
 #include <towr/variables/variable_names.h>
+#include <towr/variables/euler_converter.h>
+#include <algorithm>
 
 namespace towr {
 
@@ -39,7 +41,10 @@ RangeOfMotionConstraint::RangeOfMotionConstraint (const KinematicModel::Ptr& mod
     :TimeDiscretizationConstraint(T, dt, "rangeofmotion-" + std::to_string(ee))
 {
   base_linear_  = spline_holder.base_linear_;
-  base_angular_ = EulerConverter(spline_holder.base_angular_);
+  if (spline_holder.angular_converter_)
+    base_angular_ = spline_holder.angular_converter_;
+  else
+    base_angular_ = std::make_shared<EulerConverter>(spline_holder.base_angular_);
   ee_motion_    = spline_holder.ee_motion_.at(ee);
 
   max_deviation_from_nominal_ = model->GetMaximumDeviationFromNominal().at(ee);
@@ -48,6 +53,14 @@ RangeOfMotionConstraint::RangeOfMotionConstraint (const KinematicModel::Ptr& mod
   ee_ = ee;
 
   SetRows(GetNumberOfNodes()*k3D);
+}
+
+void
+RangeOfMotionConstraint::SetSwingRelaxation(const PhaseDurations* phase_dur,
+                                            const std::vector<int>& dims)
+{
+  phase_dur_ = phase_dur;
+  swing_relax_dims_ = dims;
 }
 
 int
@@ -61,7 +74,7 @@ RangeOfMotionConstraint::UpdateConstraintAtInstance (double t, int k, VectorXd& 
 {
   Vector3d base_W  = base_linear_->GetPoint(t).p();
   Vector3d pos_ee_W = ee_motion_->GetPoint(t).p();
-  EulerConverter::MatrixSXd b_R_w = base_angular_.GetRotationMatrixBaseToWorld(t).transpose();
+  AngularConverter::MatrixSXd b_R_w = base_angular_->GetRotationMatrixBaseToWorld(t).transpose();
 
   Vector3d vector_base_to_ee_W = pos_ee_W - base_W;
   Vector3d vector_base_to_ee_B = b_R_w*(vector_base_to_ee_W);
@@ -72,12 +85,20 @@ RangeOfMotionConstraint::UpdateConstraintAtInstance (double t, int k, VectorXd& 
 void
 RangeOfMotionConstraint::UpdateBoundsAtInstance (double t, int k, VecBound& bounds) const
 {
+  bool in_swing = phase_dur_ && !phase_dur_->IsContactPhase(t);
+
   for (int dim=0; dim<k3D; ++dim) {
-    ifopt::Bounds b;
-    b += nominal_ee_pos_B_(dim);
-    b.upper_ += max_deviation_from_nominal_(dim);
-    b.lower_ += min_deviation_from_nominal_(dim);
-    bounds.at(GetRow(k,dim)) = b;
+    if (in_swing && std::find(swing_relax_dims_.begin(),
+                              swing_relax_dims_.end(), dim)
+                    != swing_relax_dims_.end()) {
+      bounds.at(GetRow(k,dim)) = ifopt::NoBound;
+    } else {
+      ifopt::Bounds b;
+      b += nominal_ee_pos_B_(dim);
+      b.upper_ += max_deviation_from_nominal_(dim);
+      b.lower_ += min_deviation_from_nominal_(dim);
+      bounds.at(GetRow(k,dim)) = b;
+    }
   }
 }
 
@@ -86,7 +107,7 @@ RangeOfMotionConstraint::UpdateJacobianAtInstance (double t, int k,
                                                    std::string var_set,
                                                    Jacobian& jac) const
 {
-  EulerConverter::MatrixSXd b_R_w = base_angular_.GetRotationMatrixBaseToWorld(t).transpose();
+  AngularConverter::MatrixSXd b_R_w = base_angular_->GetRotationMatrixBaseToWorld(t).transpose();
   int row_start = GetRow(k,X);
 
   if (var_set == id::base_lin_nodes) {
@@ -97,7 +118,7 @@ RangeOfMotionConstraint::UpdateJacobianAtInstance (double t, int k,
     Vector3d base_W   = base_linear_->GetPoint(t).p();
     Vector3d ee_pos_W = ee_motion_->GetPoint(t).p();
     Vector3d r_W = ee_pos_W - base_W;
-    jac.middleRows(row_start, k3D) = base_angular_.DerivOfRotVecMult(t,r_W, true);
+    jac.middleRows(row_start, k3D) = base_angular_->DerivOfRotVecMult(t,r_W, true);
   }
 
   if (var_set == id::EEMotionNodes(ee_)) {

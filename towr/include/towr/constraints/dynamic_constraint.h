@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <towr/variables/spline.h>
 #include <towr/variables/spline_holder.h>
-#include <towr/variables/euler_converter.h>
+#include <towr/variables/angular_converter.h>
 
 #include <towr/models/dynamic_model.h>
 
@@ -77,8 +77,8 @@ public:
   virtual ~DynamicConstraint () = default;
 
 private:
-  NodeSpline::Ptr base_linear_;   ///< lin. base pos/vel/acc in world frame
-  EulerConverter base_angular_;        ///< angular base state
+  NodeSpline::Ptr base_linear_;
+  AngularConverter::Ptr base_angular_;
   std::vector<NodeSpline::Ptr> ee_forces_; ///< endeffector forces in world frame.
   std::vector<NodeSpline::Ptr> ee_torques_; ///< endeffector torques in world frame.
   std::vector<NodeSpline::Ptr> ee_motion_; ///< endeffector position in world frame.

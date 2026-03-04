@@ -50,6 +50,7 @@ add_library(${PROJECT_NAME} SHARED
   src/constraints/spline_acc_constraint.cc
   src/constraints/linear_constraint.cc
   src/constraints/base_height_constraint.cc
+  src/constraints/ee_linear_constraint.cc
   # costs
   src/costs/node_cost.cc
   src/costs/soft_constraint.cc
@@ -74,9 +75,12 @@ add_library(${PROJECT_NAME} SHARED
   src/helpers/nodes_observer.cc
   src/helpers/spline_holder.cc
   src/helpers/euler_converter.cc
+  src/helpers/rotvec_converter.cc
   src/helpers/phase_durations_observer.cc
   # utils
   src/utils/save_data.cpp
+  # optimizer
+  src/optimizer/towr_optimizer.cc
 )
 target_link_libraries(${PROJECT_NAME} 
   PUBLIC 
@@ -110,6 +114,51 @@ add_executable(${PROJECT_NAME}-example-2
 target_link_libraries(${PROJECT_NAME}-example-2  
   PRIVATE
     ${PROJECT_NAME} 
+    ifopt::ifopt_ipopt
+)
+
+add_executable(${PROJECT_NAME}-procedural
+  test/procedural_example.cc
+)
+target_link_libraries(${PROJECT_NAME}-procedural
+  PRIVATE
+    ${PROJECT_NAME}
+    ifopt::ifopt_ipopt
+)
+
+add_executable(${PROJECT_NAME}-squat-jump
+  test/squat_jump_example.cc
+)
+target_link_libraries(${PROJECT_NAME}-squat-jump
+  PRIVATE
+    ${PROJECT_NAME}
+    ifopt::ifopt_ipopt
+)
+
+add_executable(${PROJECT_NAME}-yaw-spin
+  test/yaw_spin_example.cc
+)
+target_link_libraries(${PROJECT_NAME}-yaw-spin
+  PRIVATE
+    ${PROJECT_NAME}
+    ifopt::ifopt_ipopt
+)
+
+add_executable(${PROJECT_NAME}-backflip
+  test/backflip_example.cc
+)
+target_link_libraries(${PROJECT_NAME}-backflip
+  PRIVATE
+    ${PROJECT_NAME}
+    ifopt::ifopt_ipopt
+)
+
+add_executable(${PROJECT_NAME}-optimizer-demo
+  test/optimizer_demo.cc
+)
+target_link_libraries(${PROJECT_NAME}-optimizer-demo
+  PRIVATE
+    ${PROJECT_NAME}
     ifopt::ifopt_ipopt
 )
 

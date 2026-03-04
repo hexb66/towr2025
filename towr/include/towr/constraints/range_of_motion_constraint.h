@@ -32,7 +32,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <towr/variables/spline.h>
 #include <towr/variables/spline_holder.h>
-#include <towr/variables/euler_converter.h>
+#include <towr/variables/angular_converter.h>
+#include <towr/variables/phase_durations.h>
 
 #include <towr/models/kinematic_model.h>
 
@@ -57,31 +58,33 @@ public:
   using EE = uint;
   using Vector3d = Eigen::Vector3d;
 
-  /**
-   * @brief Constructs a constraint instance.
-   * @param robot_model   The kinematic restrictions of the robot.
-   * @param T   The total duration of the optimization.
-   * @param dt  the discretization intervall at which to enforce constraints.
-   * @param ee            The endeffector for which to constrain the range.
-   * @param spline_holder Pointer to the current variables.
-   */
   RangeOfMotionConstraint(const KinematicModel::Ptr& robot_model,
                           double T, double dt,
                           const EE& ee,
                           const SplineHolder& spline_holder);
   virtual ~RangeOfMotionConstraint() = default;
 
+  /**
+   * @brief Enable relaxation of specified dimensions during swing (flight).
+   * @param phase_dur  Phase durations used to determine contact state.
+   * @param dims       Dimensions to relax (e.g. {Z} or {X,Y,Z}).
+   */
+  void SetSwingRelaxation(const PhaseDurations* phase_dur,
+                          const std::vector<int>& dims);
+
 private:
-  NodeSpline::Ptr base_linear_;     ///< the linear position of the base.
-  EulerConverter base_angular_; ///< the orientation of the base.
-  NodeSpline::Ptr ee_motion_;       ///< the linear position of the endeffectors.
+  NodeSpline::Ptr base_linear_;
+  AngularConverter::Ptr base_angular_;
+  NodeSpline::Ptr ee_motion_;
 
   Eigen::Vector3d max_deviation_from_nominal_;
   Eigen::Vector3d min_deviation_from_nominal_;
   Eigen::Vector3d nominal_ee_pos_B_;
   EE ee_;
 
-  // see TimeDiscretizationConstraint for documentation
+  const PhaseDurations* phase_dur_ = nullptr;
+  std::vector<int> swing_relax_dims_;
+
   void UpdateConstraintAtInstance (double t, int k, VectorXd& g) const override;
   void UpdateBoundsAtInstance (double t, int k, VecBound&) const override;
   void UpdateJacobianAtInstance(double t, int k, std::string, Jacobian&) const override;

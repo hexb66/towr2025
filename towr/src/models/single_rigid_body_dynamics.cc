@@ -122,7 +122,7 @@ SingleRigidBodyDynamics::GetJacobianWrtBaseLin (const Jac& jac_pos_base_lin,
 }
 
 SingleRigidBodyDynamics::Jac
-SingleRigidBodyDynamics::GetJacobianWrtBaseAng (const EulerConverter& base_euler,
+SingleRigidBodyDynamics::GetJacobianWrtBaseAng (const AngularConverter& base_euler,
                                         double t) const
 {
   Jac I_w = w_R_b_.sparseView() * I_b * w_R_b_.transpose().sparseView();
@@ -136,7 +136,7 @@ SingleRigidBodyDynamics::GetJacobianWrtBaseAng (const EulerConverter& base_euler
   Jac jac12 = w_R_b_.sparseView()*I_b*base_euler.DerivOfRotVecMult(t, omega_dot_, true);
 
   // 3rd term of product rule (derivative of wd)
-  Jac jac_ang_acc = base_euler.GetDerivOfAngAccWrtEulerNodes(t);
+  Jac jac_ang_acc = base_euler.GetDerivOfAngAccWrtNodes(t);
   Jac jac13 = I_w * jac_ang_acc;
   Jac jac1 = jac11 + jac12 + jac13;
 
@@ -151,7 +151,7 @@ SingleRigidBodyDynamics::GetJacobianWrtBaseAng (const EulerConverter& base_euler
   Jac jac22 = w_R_b_.sparseView()*I_b*base_euler.DerivOfRotVecMult(t, omega_, true);
 
   // 3rd term of product rule (derivative of omega)
-  Jac jac_ang_vel = base_euler.GetDerivOfAngVelWrtEulerNodes(t);
+  Jac jac_ang_vel = base_euler.GetDerivOfAngVelWrtNodes(t);
   Jac jac23 = I_w * jac_ang_vel;
 
   Jac jac2 = Cross(omega_)*(jac21+jac22+jac23) - Cross(I_w*omega_)*jac_ang_vel;

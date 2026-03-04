@@ -35,39 +35,25 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
+#include "angular_converter.h"
 #include "cartesian_dimensions.h"
 #include "node_spline.h"
 
 namespace towr {
 
 /**
- * @brief Converts Euler angles and derivatives to angular quantities.
+ * @brief Converts ZYX Euler angles and derivatives to angular quantities.
  *
- * Euler angles, their first derivatives (Euler rates) and their second
- * derivatives fully define the angular state of an rigid body in space. This
- * class provides equivalent formulation of these values, specifically:
- * @li Orientation as Rotation matrix or Quaternion.
- * @li Angular velocity (x,y,z)
- * @li Angular acceleration (x,y,z)
+ * Implements AngularConverter using Euler-angle parameterization
+ * (yaw-pitch-roll / Z-Y'-X'').
  *
- * Furthermore, the Euler angle spline is fully defined by a set of node values.
- * This class also gives the derivative of the above quantities with respect
- * to the values of these nodes.
- *
- * Formulas taken from kindr:
+ * Formulas from kindr:
  * http://docs.leggedrobotics.com/kindr/cheatsheet_latest.pdf
- *
- * See matlab script "matlab/euler_converter.m" for derivation.
  */
-class EulerConverter {
+class EulerConverter : public AngularConverter {
 public:
-  using Vector3d    = Eigen::Vector3d;
   using EulerAngles = Vector3d; ///< roll, pitch, yaw.
-  using EulerRates  = Vector3d; ///< derivative of the above
-
-  using JacobianRow = Eigen::SparseVector<double, Eigen::RowMajor>;
-  using MatrixSXd   = Eigen::SparseMatrix<double, Eigen::RowMajor>;
-  using Jacobian    = MatrixSXd;
+  using EulerRates  = Vector3d;
   using JacRowMatrix = std::array<std::array<JacobianRow, k3D>, k3D>;
 
   EulerConverter () = default;
@@ -76,83 +62,21 @@ public:
    * @brief Constructs and links this object to the Euler angle values
    * @param euler_angles_spline  The Euler angle spline defined by node values.
    *
-   * The order of application that is assumed here is (Z,Y',X'').
-   * So in order to get the orientation of an object in space from the Euler
-   * angles, we first rotate around yaw(z) axis, then around new pitch(y)
-   * axis and finally around new roll(x) axis.
-   *
-   * However, the 3-dimensional Euler angles must store the euler angles, rates, and
-   * rate derivatives in the order (roll, pitch, yaw):
-   * double roll  = euler_angles->GetPoint(t).x();
-   * double pitch = euler_angles->GetPoint(t).y();
-   * double yaw   = euler_angles->GetPoint(t).z();
+   * The 3-dimensional Euler angles store values in order (roll, pitch, yaw).
+   * Rotation order is Z-Y'-X'' (yaw first, then pitch, then roll).
    */
   EulerConverter (const NodeSpline::Ptr& euler_angles);
-  virtual ~EulerConverter () = default;
+  ~EulerConverter () override = default;
 
-  /**
-   * @brief Converts the Euler angles at time t to a Quaternion.
-   * @param t The current time in the euler angles spline.
-   * @return A Quaternion the maps a vector from base to world frame.
-   */
-  Eigen::Quaterniond GetQuaternionBaseToWorld (double t) const;
+  Eigen::Quaterniond GetQuaternionBaseToWorld (double t) const override;
+  MatrixSXd GetRotationMatrixBaseToWorld(double t) const override;
+  Vector3d GetAngularVelocityInWorld(double t) const override;
+  Vector3d GetAngularAccelerationInWorld(double t) const override;
+  Jacobian GetDerivOfAngVelWrtNodes(double t) const override;
+  Jacobian GetDerivOfAngAccWrtNodes(double t) const override;
+  Jacobian DerivOfRotVecMult(double t, const Vector3d& v, bool inverse) const override;
 
-  /**
-   * @brief Converts the Euler angles at time t to a rotation matrix.
-   * @param t The current time in the euler angles spline.
-   * @return A 3x3 rotation matrix that maps a vector from base to world frame.
-   */
-  MatrixSXd GetRotationMatrixBaseToWorld(double t) const;
-
-  /** @see GetRotationMatrixBaseToWorld(t)  */
   static MatrixSXd GetRotationMatrixBaseToWorld(const EulerAngles& xyz);
-
-  /**
-   * @brief Converts Euler angles and Euler rates to angular velocities.
-   * @param t The current time in the euler angles spline.
-   * @return A 3-dim vector (x,y,z) of the angular velocities in world frame.
-   */
-  Vector3d GetAngularVelocityInWorld(double t) const;
-
-  /**
-   * @brief Converts Euler angles, rates and rate derivatives  o angular accelerations.
-   * @param t The current time in the euler angles spline.
-   * @return A 3-dim vector (x,y,z) of the angular accelerations in world frame.
-   */
-  Vector3d GetAngularAccelerationInWorld(double t) const;
-
-  /**
-   * @brief Jacobian of the angular velocity with respect to the Euler nodes.
-   * @param t  The current time in the Euler angles spline.
-   * @return  The 3xn Jacobian Matrix of derivatives.
-   *          3: because angular velocity has an x,y,z component.
-   *          n: the number of optimized nodes values defining the Euler spline.
-   */
-  Jacobian GetDerivOfAngVelWrtEulerNodes(double t) const;
-
-  /**
-   * @brief Jacobian of the angular acceleration with respect to the Euler nodes.
-   * @param t  The current time in the Euler angles spline.
-   * @return The 3xn Jacobian Matrix of derivatives.
-   *          3: because angular acceleration has an x,y,z component
-   *          n: the number of optimized nodes values defining the Euler spline.
-   */
-  Jacobian GetDerivOfAngAccWrtEulerNodes(double t) const;
-
-  /** @brief Returns the derivative of result of the linear equation M*v.
-   *
-   * M is the rotation matrix from base to world, defined by the Euler nodes.
-   * v is any vector independent of the Euler nodes. The sensitivity
-   * of the 3-dimensional vector w.r.t the Euler node values is given.
-   *
-   * @param t        time at which the Euler angles are evaluated.
-   * @param v        vector (e.g. relative position, velocity, acceleration).
-   * @param inverse  if true, the derivative for M^(-1)*v is evaluated.
-   * @returns        3 x n dimensional matrix (n = number of Euler node values).
-   */
-  Jacobian DerivOfRotVecMult(double t, const Vector3d& v, bool inverse) const;
-
-  /** @see GetQuaternionBaseToWorld(t)  */
   static Eigen::Quaterniond GetQuaternionBaseToWorld(const EulerAngles& pos);
 
 private:

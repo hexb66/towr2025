@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <towr/costs/angular_momentum_cost.h>
 
 #include <towr/models/single_rigid_body_dynamics.h>
+#include <towr/variables/angular_converter.h>
 #include <towr/variables/euler_converter.h>
 #include <towr/variables/variable_names.h>
 
@@ -70,10 +71,10 @@ AngularMomentumCost::GetCost() const
     return 0.0;
   }
 
-  EulerConverter base_ang(splines_.base_angular_);
+  AngularConverter::Ptr base_ang = splines_.angular_converter_;
+  if (!base_ang) base_ang = std::make_shared<EulerConverter>(splines_.base_angular_);
   const double wdt = weight_ * (dt_ > 0.0 ? dt_ : 1.0);
 
-  // Prefer true angular momentum if SRBD model is used.
   const auto* srbd = dynamic_cast<const SingleRigidBodyDynamics*>(model_.get());
   Eigen::Matrix3d I_b = Eigen::Matrix3d::Identity();
   bool use_true_L = false;
@@ -84,8 +85,8 @@ AngularMomentumCost::GetCost() const
 
   double cost = 0.0;
   for (double t : GetSampleTimes()) {
-    Eigen::Matrix3d R = base_ang.GetRotationMatrixBaseToWorld(t).toDense();
-    Vector3d omega = base_ang.GetAngularVelocityInWorld(t);
+    Eigen::Matrix3d R = base_ang->GetRotationMatrixBaseToWorld(t).toDense();
+    Vector3d omega = base_ang->GetAngularVelocityInWorld(t);
 
     Vector3d v = omega;
     if (use_true_L) {
@@ -110,7 +111,8 @@ AngularMomentumCost::FillJacobianBlock(std::string var_set, Jacobian& jac) const
     return;
   }
 
-  EulerConverter base_ang(splines_.base_angular_);
+  AngularConverter::Ptr base_ang = splines_.angular_converter_;
+  if (!base_ang) base_ang = std::make_shared<EulerConverter>(splines_.base_angular_);
   const double wdt = weight_ * (dt_ > 0.0 ? dt_ : 1.0);
 
   const auto* srbd = dynamic_cast<const SingleRigidBodyDynamics*>(model_.get());
@@ -124,9 +126,9 @@ AngularMomentumCost::FillJacobianBlock(std::string var_set, Jacobian& jac) const
   const int n = splines_.base_angular_->GetNodeVariablesCount();
 
   for (double t : GetSampleTimes()) {
-    Eigen::Matrix3d R = base_ang.GetRotationMatrixBaseToWorld(t).toDense();
+    Eigen::Matrix3d R = base_ang->GetRotationMatrixBaseToWorld(t).toDense();
     Eigen::Matrix3d R_T = R.transpose();
-    Vector3d omega = base_ang.GetAngularVelocityInWorld(t);
+    Vector3d omega = base_ang->GetAngularVelocityInWorld(t);
 
     // Compute vector to penalize: v = L or omega
     Vector3d v = omega;
@@ -142,7 +144,7 @@ AngularMomentumCost::FillJacobianBlock(std::string var_set, Jacobian& jac) const
     // dv/dx
     // If fallback: v=omega, dv/dx is simply d omega / dx
     if (!use_true_L) {
-      auto Jw = base_ang.GetDerivOfAngVelWrtEulerNodes(t); // 3 x n (sparse)
+      auto Jw = base_ang->GetDerivOfAngVelWrtNodes(t); // 3 x n (sparse)
       for (int r=0; r<k3D; ++r) {
         for (EulerConverter::Jacobian::InnerIterator it(Jw, r); it; ++it) {
           jac.coeffRef(0, it.col()) += m(r) * it.value();
@@ -156,9 +158,9 @@ AngularMomentumCost::FillJacobianBlock(std::string var_set, Jacobian& jac) const
     Vector3d u = R_T * omega;
     Vector3d v2 = I_b * u;
 
-    auto J_R_v2 = base_ang.DerivOfRotVecMult(t, v2, /*inverse=*/false); // 3 x n (sparse)
-    auto J_Rt_omega = base_ang.DerivOfRotVecMult(t, omega, /*inverse=*/true); // 3 x n (sparse)
-    auto J_omega = base_ang.GetDerivOfAngVelWrtEulerNodes(t); // 3 x n (sparse)
+    auto J_R_v2 = base_ang->DerivOfRotVecMult(t, v2, /*inverse=*/false); // 3 x n (sparse)
+    auto J_Rt_omega = base_ang->DerivOfRotVecMult(t, omega, /*inverse=*/true); // 3 x n (sparse)
+    auto J_omega = base_ang->GetDerivOfAngVelWrtNodes(t); // 3 x n (sparse)
 
     // Build dense 3 x n for the second term: R * I_b * ( d(R^T*omega)/dx + R^T * d(omega)/dx )
     Eigen::MatrixXd J2 = Eigen::MatrixXd::Zero(k3D, n);

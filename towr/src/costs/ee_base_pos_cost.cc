@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <towr/variables/variable_names.h>
 #include <towr/variables/cartesian_dimensions.h>
+#include <towr/variables/euler_converter.h>
 
 namespace towr {
 
@@ -72,7 +73,8 @@ EEBasePosCost::GetCost() const
   }
 
   double cost = 0.0;
-  EulerConverter base_ang(splines_.base_angular_);
+  AngularConverter::Ptr base_ang = splines_.angular_converter_;
+  if (!base_ang) base_ang = std::make_shared<EulerConverter>(splines_.base_angular_);
 
   for (double t : GetSampleTimes()) {
     // only during swing
@@ -83,7 +85,7 @@ EEBasePosCost::GetCost() const
     Vector3d p_base = splines_.base_linear_->GetPoint(t).p();
     Vector3d p_ee = splines_.ee_motion_.at(ee_)->GetPoint(t).p();
     Vector3d r_W = p_ee - p_base;
-    Eigen::Matrix3d b_R_w = base_ang.GetRotationMatrixBaseToWorld(t).transpose();
+    Eigen::Matrix3d b_R_w = base_ang->GetRotationMatrixBaseToWorld(t).transpose();
     Vector3d p_B = b_R_w * r_W;
 
     Vector3d e = p_B - p_ref_B_;
@@ -100,7 +102,8 @@ EEBasePosCost::FillJacobianBlock(std::string var_set, Jacobian& jac) const
     return;
   }
 
-  EulerConverter base_ang(splines_.base_angular_);
+  AngularConverter::Ptr base_ang = splines_.angular_converter_;
+  if (!base_ang) base_ang = std::make_shared<EulerConverter>(splines_.base_angular_);
 
   for (double t : GetSampleTimes()) {
     // only during swing
@@ -111,11 +114,10 @@ EEBasePosCost::FillJacobianBlock(std::string var_set, Jacobian& jac) const
     Vector3d p_base = splines_.base_linear_->GetPoint(t).p();
     Vector3d p_ee = splines_.ee_motion_.at(ee_)->GetPoint(t).p();
     Vector3d r_W = p_ee - p_base;
-    Eigen::Matrix3d b_R_w = base_ang.GetRotationMatrixBaseToWorld(t).transpose();
+    Eigen::Matrix3d b_R_w = base_ang->GetRotationMatrixBaseToWorld(t).transpose();
     Vector3d p_B = b_R_w * r_W;
     Vector3d e = p_B - p_ref_B_;
 
-    // common multiplier (d/dx weight*||e||^2 = 2*weight*e^T * de/dx)
     Eigen::RowVector3d m = (2.0*weight_) * e.transpose();
 
     if (var_set == id::EEMotionNodes(ee_)) {
@@ -140,7 +142,7 @@ EEBasePosCost::FillJacobianBlock(std::string var_set, Jacobian& jac) const
 
     if (var_set == id::base_ang_nodes) {
       // derivative of (b_R_w * r_W) w.r.t base euler nodes
-      auto Jrot = base_ang.DerivOfRotVecMult(t, r_W, /*inverse=*/true); // 3 x n
+      auto Jrot = base_ang->DerivOfRotVecMult(t, r_W, /*inverse=*/true); // 3 x n
       for (int r=0; r<k3D; ++r) {
         for (EulerConverter::Jacobian::InnerIterator it(Jrot, r); it; ++it) {
           jac.coeffRef(0, it.col()) += m(r) * it.value();

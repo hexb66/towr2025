@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "towr/variables/state.h"
 #include <cmath>
 #include <towr/nlp_formulation.h>
+#include <towr/variables/rotvec_converter.h>
 
 #include <towr/variables/variable_names.h>
 #include <towr/variables/phase_durations.h>
@@ -51,6 +52,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <towr/costs/node_cost.h>
 #include <towr/costs/ee_base_pos_cost.h>
+#include <towr/constraints/ee_linear_constraint.h>
 #include <towr/costs/energy_cost.h>
 #include <towr/costs/angular_momentum_cost.h>
 #include <towr/variables/nodes_variables_all.h>
@@ -108,6 +110,10 @@ NlpFormulation::GetVariableSets (SplineHolder& spline_holder)
                                ee_torque,
                                contact_schedule,
                                params_.IsOptimizeTimings());
+  if (params_.angular_rep_ == Parameters::RotationVector)
+    spline_holder.angular_converter_ = std::make_shared<RotVecConverter>(spline_holder.base_angular_);
+  else
+    spline_holder.angular_converter_ = std::make_shared<EulerConverter>(spline_holder.base_angular_);
   spline_holder_for_costs_ = spline_holder;
   return vars;
 }
@@ -144,9 +150,6 @@ NlpFormulation::MakeBaseVariables () const
   spline_ang->AddFinalBound(kVel, params_.bounds_final_ang_vel_, final_base_.ang.v());
   spline_ang->AddFinalBound(kAcc, {X,Y,Z}, Vector3d(0.0, 0.0, 0.0));
 
-  // Optional: hard-fix base pitch (world Euler Y) for the entire trajectory.
-  // We bind both pitch position and pitch velocity at all nodes so the Hermite
-  // polynomials cannot "bulge" between nodes.
   if (params_.constrain_base_pitch_) {
     Vector3d ang_target = Vector3d::Zero();
     ang_target(Y) = params_.base_pitch_target_;
@@ -157,6 +160,25 @@ NlpFormulation::MakeBaseVariables () const
       spline_ang->AddBounds(node_id, kVel, {Y}, ang_vel_target);
     }
   }
+
+  // Apply user-specified intermediate waypoints on base nodes.
+  // tolerance==0 → exact equality; tolerance>0 → [value-tol, value+tol] range.
+  auto apply_waypoints = [&](const std::vector<Parameters::BaseWaypoint>& wps,
+                             std::shared_ptr<NodesVariablesAll>& nodes) {
+    double poly_dt = params_.duration_base_polynomial_;
+    for (const auto& wp : wps) {
+      int nid = static_cast<int>(std::round(wp.t / poly_dt));
+      nid = std::max(0, std::min(nid, n_nodes - 1));
+      if (wp.tolerance.isZero()) {
+        nodes->AddBounds(nid, wp.deriv, wp.dims, wp.value);
+      } else {
+        nodes->AddBounds(nid, wp.deriv, wp.dims,
+                         wp.value - wp.tolerance, wp.value + wp.tolerance);
+      }
+    }
+  };
+  apply_waypoints(params_.base_lin_waypoints_, spline_lin);
+  apply_waypoints(params_.base_ang_waypoints_, spline_ang);
 
   vars.push_back(spline_ang);
 
@@ -348,6 +370,10 @@ NlpFormulation::GetConstraints(const SplineHolder& spline_holder) const
     for (auto c : GetConstraint(name, spline_holder))
       constraints.push_back(c);
 
+  for (const auto& def : params_.ee_linear_constraints_)
+    for (auto c : MakeEELinearConstraint(def, spline_holder))
+      constraints.push_back(c);
+
   return constraints;
 }
 
@@ -404,6 +430,10 @@ NlpFormulation::MakeRangeOfMotionBoxConstraint (const SplineHolder& s) const
                                                          params_.dt_constraint_range_of_motion_,
                                                          ee,
                                                          s);
+    if (!params_.rom_swing_relax_dims_.empty() && s.phase_durations_.size() > (size_t)ee) {
+      rom->SetSwingRelaxation(s.phase_durations_.at(ee).get(),
+                              params_.rom_swing_relax_dims_);
+    }
     c.push_back(rom);
   }
 
@@ -647,6 +677,30 @@ NlpFormulation::MakeEEMotionCost(double weight) const
   }
 
   return cost;
+}
+
+NlpFormulation::ContraintPtrVec
+NlpFormulation::MakeEELinearConstraint(
+    const Parameters::EELinearConstraintDef& def,
+    const SplineHolder& s) const
+{
+  using Term = EELinearConstraint::Term;
+  std::vector<Term> terms;
+  for (const auto& t : def.terms)
+    terms.push_back({t.ee, t.dim, t.coeff});
+
+  auto& splines = (def.target == Parameters::EELinearConstraintDef::Motion)
+                      ? s.ee_motion_ : s.ee_ang_;
+  std::vector<std::string> var_names;
+  for (int ee = 0; ee < params_.GetEECount(); ++ee) {
+    var_names.push_back(
+        (def.target == Parameters::EELinearConstraintDef::Motion)
+            ? id::EEMotionNodes(ee) : id::EEAngNodes(ee));
+  }
+
+  return {std::make_shared<EELinearConstraint>(
+      terms, splines, var_names, def.deriv,
+      def.tolerance, params_.GetTotalTime(), def.dt)};
 }
 
 } /* namespace towr */

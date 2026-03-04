@@ -83,7 +83,7 @@ EulerConverter::GetAngularAccelerationInWorld (State ori)
 }
 
 EulerConverter::Jacobian
-EulerConverter::GetDerivOfAngVelWrtEulerNodes(double t) const
+EulerConverter::GetDerivOfAngVelWrtNodes(double t) const
 {
   Jacobian jac = jac_wrt_nodes_structure_;
 
@@ -102,7 +102,7 @@ EulerConverter::GetDerivOfAngVelWrtEulerNodes(double t) const
 }
 
 EulerConverter::Jacobian
-EulerConverter::GetDerivOfAngAccWrtEulerNodes (double t) const
+EulerConverter::GetDerivOfAngAccWrtNodes (double t) const
 {
   Jacobian jac = jac_wrt_nodes_structure_;
 

@@ -82,7 +82,7 @@ public:
 
   Jac GetJacobianWrtBaseLin(const Jac& jac_base_lin_pos,
                             const Jac& jac_acc_base_lin) const override;
-  Jac GetJacobianWrtBaseAng(const EulerConverter& base_angular,
+  Jac GetJacobianWrtBaseAng(const AngularConverter& base_angular,
                             double t) const override;
   Jac GetJacobianWrtForce(const Jac& jac_force, EE) const override;
   Jac GetJacobianWrtTorque(const Jac& jac_torque, EE) const override;

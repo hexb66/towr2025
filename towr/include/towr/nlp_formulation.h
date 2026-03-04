@@ -131,6 +131,8 @@ private:
   ContraintPtrVec MakeBaseRangeOfMotionConstraint(const SplineHolder& s) const;
   ContraintPtrVec MakeBaseAccConstraint(const SplineHolder& s) const;
   ContraintPtrVec MakeBaseHeightConstraint() const;
+  ContraintPtrVec MakeEELinearConstraint(const Parameters::EELinearConstraintDef& def,
+                                         const SplineHolder& s) const;
 
   // costs
   CostPtrVec GetCost(const Parameters::CostName& id, double weight) const;

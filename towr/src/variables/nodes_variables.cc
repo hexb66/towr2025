@@ -228,10 +228,25 @@ NodesVariables::AddBounds(int node_id, Dx deriv,
 void
 NodesVariables::AddBound (const NodeValueInfo& nvi_des, double val)
 {
+  AddBound(nvi_des, val, val);
+}
+
+void
+NodesVariables::AddBound (const NodeValueInfo& nvi_des, double lower, double upper)
+{
   for (int idx=0; idx<GetRows(); ++idx)
     for (auto nvi : GetNodeValuesInfo(idx))
       if (nvi == nvi_des)
-        bounds_.at(idx) = ifopt::Bounds(val, val);
+        bounds_.at(idx) = ifopt::Bounds(lower, upper);
+}
+
+void
+NodesVariables::AddBounds(int node_id, Dx deriv,
+                 const std::vector<int>& dimensions,
+                 const VectorXd& lower, const VectorXd& upper)
+{
+  for (auto dim : dimensions)
+    AddBound(NodeValueInfo(node_id, deriv, dim), lower(dim), upper(dim));
 }
 
 void

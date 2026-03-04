@@ -31,6 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <towr/variables/variable_names.h>
 #include <towr/variables/cartesian_dimensions.h>
+#include <towr/variables/euler_converter.h>
 
 namespace towr {
 
@@ -41,9 +42,11 @@ DynamicConstraint::DynamicConstraint (const DynamicModel::Ptr& m,
 {
   model_ = m;
 
-  // link with up-to-date spline variables
   base_linear_  = spline_holder.base_linear_;
-  base_angular_ = EulerConverter(spline_holder.base_angular_);
+  if (spline_holder.angular_converter_)
+    base_angular_ = spline_holder.angular_converter_;
+  else
+    base_angular_ = std::make_shared<EulerConverter>(spline_holder.base_angular_);
   ee_forces_    = spline_holder.ee_force_;
   ee_torques_   = spline_holder.ee_torque_;
   ee_motion_    = spline_holder.ee_motion_;
@@ -90,7 +93,7 @@ DynamicConstraint::UpdateJacobianAtInstance(double t, int k, std::string var_set
   }
 
   if (var_set == id::base_ang_nodes) {
-    jac_model = model_->GetJacobianWrtBaseAng(base_angular_, t);
+    jac_model = model_->GetJacobianWrtBaseAng(*base_angular_, t);
   }
 
   // sensitivity of dynamic constraint w.r.t. endeffector variables
@@ -127,9 +130,9 @@ DynamicConstraint::UpdateModel (double t) const
 {
   auto com = base_linear_->GetPoint(t);
 
-  Eigen::Matrix3d w_R_b = base_angular_.GetRotationMatrixBaseToWorld(t);
-  Eigen::Vector3d omega = base_angular_.GetAngularVelocityInWorld(t);
-  Eigen::Vector3d omega_dot = base_angular_.GetAngularAccelerationInWorld(t);
+  Eigen::Matrix3d w_R_b = base_angular_->GetRotationMatrixBaseToWorld(t);
+  Eigen::Vector3d omega = base_angular_->GetAngularVelocityInWorld(t);
+  Eigen::Vector3d omega_dot = base_angular_->GetAngularAccelerationInWorld(t);
 
   int n_ee = model_->GetEECount();
   std::vector<Eigen::Vector3d> ee_pos;

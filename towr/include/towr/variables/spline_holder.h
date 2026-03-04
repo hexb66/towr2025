@@ -34,6 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "node_spline.h"
 #include "nodes_variables.h"
 #include "nodes_variables_phase_based.h"
+#include "angular_converter.h"
 
 namespace towr {
 
@@ -73,6 +74,7 @@ struct SplineHolder {
 
   NodeSpline::Ptr base_linear_;
   NodeSpline::Ptr base_angular_;
+  AngularConverter::Ptr angular_converter_;
 
   std::vector<NodeSpline::Ptr> ee_motion_;
   std::vector<NodeSpline::Ptr> ee_ang_;
